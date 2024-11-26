@@ -66,7 +66,7 @@ commands:
           name: Build Docker image
           command: |
             TAG=<< parameters.scac >>-TEST-<< parameters.environment >>
-            docker build -- build-arg scac=<< parameters.scac >> -- build-arg environment=<< parameters.environment >> -- build-arg mark_list=<< parameters.mark_list >>  -f Dockerfile.railwaynet -t $DOCKER_LOGIN/ricochet-ui:$TAG .
+            docker build --build-arg scac=<< parameters.scac >> --build-arg environment=<< parameters.environment >> --build-arg mark_list=<< parameters.mark_list >>  -f Dockerfile.railwaynet -t $DOCKER_LOGIN/ricochet-ui:$TAG .
 
 
 jobs:
