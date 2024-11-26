@@ -1,0 +1,429 @@
+version: 2.1
+
+# slack-fail-post-step: &slack-fail-post-step
+#   post-steps:
+#     - slack/notify:
+#         custom: |
+#           {
+#             "text": "",
+#             "blocks": [
+#               {
+#                 "type": "section",
+#                 "text": {
+#                   "type": "mrkdwn",
+#                   "text": "❌ *Failure* #${CIRCLE_BUILD_NUM} `${CIRCLE_PROJECT_REPONAME}` on `${CIRCLE_BRANCH}`"
+#                 }
+#               },
+#               {
+#                 "type": "actions",
+#                 "elements": [
+#                   {
+#                     "type": "button",
+#                     "text": {
+#                       "type": "plain_text",
+#                       "text": "View Job"
+#                     },
+#                     "url": "${CIRCLE_BUILD_URL}"
+#                   }
+#                 ]
+#               }
+#             ]
+#           }
+#         event: fail
+
+parameters:
+  STROLR_Online:
+        description: Deploy in to ECS in Datasages AWS
+        type: boolean
+        default: false
+
+
+orbs:
+  aws-ecr: circleci/aws-ecr@9.1.0
+  aws-ecs: circleci/aws-ecs@4.0.0
+  aws-cli: circleci/aws-cli@4.1.3
+  docker: circleci/docker@2.6.0
+#  slack: circleci/slack@4.4.2
+# Push Trivial Change
+
+commands:
+  build_tagged_image:
+    parameters:
+        scac:
+          description: Lower case railroad SCAC
+          type: string
+          default: ""
+        environment:
+          description: test, prod or dr
+          type: string
+          default: ""
+        mark_list:
+          description: list of marks for a given SCAC 
+          type: string
+          default: ""
+    steps:
+      - run:
+          name: Build Docker image
+          command: |
+            TAG=<< parameters.scac >>-TEST-<< parameters.environment >>
+            docker build -- build-arg scac=<< parameters.scac >> -- build-arg environment=<< parameters.environment >> -- build-arg mark_list=<< parameters.mark_list >>  -f Dockerfile.railwaynet -t $DOCKER_LOGIN/strolr-ui:$TAG .
+
+
+jobs:
+  docker_build:
+    parameters:
+        scac:
+          description: Lower case railroad SCAC
+          type: string
+          default: ""
+        environment:
+          description: test, prod or dr
+          type: string
+          default: ""
+        mark_list:
+          description: list of marks for a given SCAC 
+          type: string
+          default: ""
+
+    working_directory: ~/app
+    docker:
+      - image: cimg/base:2022.09
+        auth:
+          username: $DOCKER_LOGIN
+          password: $DOCKER_PASSWORD  
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - build_tagged_image:
+          scac: << parameters.scac >>
+          environment: << parameters.environment >>
+          mark_list: "amtk,cdtx"
+
+
+
+workflows:
+  docker_test_build:
+    jobs:
+      - docker_build:
+          matrix:
+            parameters:
+              scac: ["amtk", "csao", "njtr", "nysw", "sepa", "vrex"]
+              environment: ["dev", "prod", "dr"]
+          filters:
+            branches:
+              ignore:
+                - main
+                - test
+                - rwn-prod
+          context:
+            - railwaynet
+  
+  build-and-push:
+    jobs:
+      - aws-ecr/build_and_push_image:
+          name: datasages-prod-build
+          auth:
+            - aws-cli/setup:
+              aws-access-key-id: AWS_ACCESS_KEY_ID
+              aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create_repo: false
+          dockerfile: Dockerfile.circleci
+          path: .
+          push_image: true          
+          repo: "${AWS_RESOURCE_NAME_PREFIX}-prod"
+          tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
+          context:
+            - railwaynet
+          filters:
+            branches:
+              only:
+                - main
+
+      - aws-ecr/build_and_push_image:
+          name: datasages-api-test-build
+          auth:
+            - aws-cli/setup:
+              aws-access-key-id: AWS_ACCESS_KEY_ID
+              aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create_repo: true
+          dockerfile: Dockerfile.circleci.api-test
+          path: .
+          push_image: true          
+          repo: "${AWS_RESOURCE_NAME_PREFIX}-api-test"
+          tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
+          context:
+            - railwaynet
+          filters:
+            branches:
+              only:
+                - api-test
+
+      - aws-ecr/build_and_push_image:
+          name: datasages-test-build
+          auth:
+            - aws-cli/setup:
+              aws-access-key-id: AWS_ACCESS_KEY_ID
+              aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create_repo: true
+          dockerfile: Dockerfile.circleci.test
+          path: .
+          push_image: true          
+          repo: "${AWS_RESOURCE_NAME_PREFIX}-test"
+          tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
+          context:
+            - railwaynet
+          filters:
+            branches:
+              only:
+                - test                     
+
+  update_service:
+    when: << pipeline.parameters.STROLR_Online >>
+    jobs:
+      - aws-ecs/deploy_service_update:
+          name: datasages-prod-deploy
+          requires:
+            - datasages-prod-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=strolr-ui-prod-container,tag=${CIRCLE_SHA1}"
+          service_name: "strolr-ui-prod-service"
+          family: "strolr-ui-prod-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - main
+
+      - aws-ecs/deploy_service_update:
+          name: datasages-api-test-deploy
+          requires:
+            - datasages-api-test-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=strolr-ui-api-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "strolr-ui-api-test-service"
+          family: "strolr-ui-api-test-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - api-test
+
+      - aws-ecs/deploy_service_update:
+          name: datasages-test-deploy
+          requires:
+            - datasages-test-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=strolr-ui-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "strolr-ui-test-service"
+          family: "strolr-ui-test-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - test
+
+  railwaynet-build-and-push:
+    when: << pipeline.git.tag >> 
+    jobs:
+      - docker/publish:
+            dockerfile: Dockerfile.amtk.dev
+            name: amtk-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: amtk-<< pipeline.git.tag >>-dev
+            filters: &filters
+              branches:
+                ignore: /.*/
+              tags:
+                # Trigger on every tag
+                only: /.*/
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.amtk
+            name: amtk-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: amtk-<< pipeline.git.tag >>
+            filters: 
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.amtk.dr
+            name: amtk-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: amtk-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.csao.dev
+            name: csao-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: csao-<< pipeline.git.tag >>-dev
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.csao
+            name: csao-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: csao-<< pipeline.git.tag >>
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.csao.dr
+            name: csao-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: csao-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet   
+
+      - docker/publish:
+            dockerfile: Dockerfile.njtr.dev
+            name: njtr-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: njtr-<< pipeline.git.tag >>-dev
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.njtr
+            name: njtr-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: njtr-<< pipeline.git.tag >>
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.njtr.dr
+            name: njtr-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: njtr-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet 
+
+      - docker/publish:
+            dockerfile: Dockerfile.nysw.dev
+            name: nysw-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: nysw-<< pipeline.git.tag >>-dev
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.nysw
+            name: nysw-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: nysw-<< pipeline.git.tag >>
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.nysw.dr
+            name: nysw-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: nysw-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet   
+
+      - docker/publish:
+            dockerfile: Dockerfile.sepa.dev
+            name: sepa-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: sepa-<< pipeline.git.tag >>-dev
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.sepa
+            name: sepa-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: sepa-<< pipeline.git.tag >>
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.sepa.dr
+            name: sepa-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: sepa-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet 
+
+      - docker/publish:
+            dockerfile: Dockerfile.vrex.dev
+            name: vrex-build-and-publish-interop
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: vrex-<< pipeline.git.tag >>-dev
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.vrex
+            name: vrex-build-and-publish-prod
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: vrex-<< pipeline.git.tag >>
+            filters:
+              <<: *filters
+            context:
+              - railwaynet
+
+      - docker/publish:
+            dockerfile: Dockerfile.vrex.dr
+            name: vrex-build-and-publish-dr
+            image: $DOCKER_LOGIN/strolr-ui
+            tag: vrex-<< pipeline.git.tag >>-dr
+            filters:
+              <<: *filters
+            context:
+              - railwaynet                                                                                       
