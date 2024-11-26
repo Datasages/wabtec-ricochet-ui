@@ -66,7 +66,7 @@ commands:
           name: Build Docker image
           command: |
             TAG=<< parameters.scac >>-TEST-<< parameters.environment >>
-            docker build -- build-arg scac=<< parameters.scac >> -- build-arg environment=<< parameters.environment >> -- build-arg mark_list=<< parameters.mark_list >>  -f Dockerfile.railwaynet -t $DOCKER_LOGIN/strolr-ui:$TAG .
+            docker build -- build-arg scac=<< parameters.scac >> -- build-arg environment=<< parameters.environment >> -- build-arg mark_list=<< parameters.mark_list >>  -f Dockerfile.railwaynet -t $DOCKER_LOGIN/ricochet-ui:$TAG .
 
 
 jobs:
@@ -190,9 +190,9 @@ workflows:
             aws-access-key-id: AWS_ACCESS_KEY_ID
             aws-secret-access-key: AWS_SECRET_ACCESS_KEY
           cluster: "strolr-cluster"
-          container_image_name_updates: "container=strolr-ui-prod-container,tag=${CIRCLE_SHA1}"
-          service_name: "strolr-ui-prod-service"
-          family: "strolr-ui-prod-task-definition"
+          container_image_name_updates: "container=ricochet-ui-prod-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-prod-service"
+          family: "ricochet-ui-prod-task-definition"
           context:
             - railwaynet
             - slack-secrets
@@ -210,9 +210,9 @@ workflows:
             aws-access-key-id: AWS_ACCESS_KEY_ID
             aws-secret-access-key: AWS_SECRET_ACCESS_KEY
           cluster: "strolr-cluster"
-          container_image_name_updates: "container=strolr-ui-api-test-container,tag=${CIRCLE_SHA1}"
-          service_name: "strolr-ui-api-test-service"
-          family: "strolr-ui-api-test-task-definition"
+          container_image_name_updates: "container=ricochet-ui-api-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-api-test-service"
+          family: "ricochet-ui-api-test-task-definition"
           context:
             - railwaynet
             - slack-secrets
@@ -230,9 +230,9 @@ workflows:
             aws-access-key-id: AWS_ACCESS_KEY_ID
             aws-secret-access-key: AWS_SECRET_ACCESS_KEY
           cluster: "strolr-cluster"
-          container_image_name_updates: "container=strolr-ui-test-container,tag=${CIRCLE_SHA1}"
-          service_name: "strolr-ui-test-service"
-          family: "strolr-ui-test-task-definition"
+          container_image_name_updates: "container=ricochet-ui-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-test-service"
+          family: "ricochet-ui-test-task-definition"
           context:
             - railwaynet
             - slack-secrets
@@ -247,7 +247,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.amtk.dev
             name: amtk-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: amtk-<< pipeline.git.tag >>-dev
             filters: &filters
               branches:
@@ -261,7 +261,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.amtk
             name: amtk-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: amtk-<< pipeline.git.tag >>
             filters: 
               <<: *filters
@@ -271,7 +271,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.amtk.dr
             name: amtk-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: amtk-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
@@ -281,7 +281,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.csao.dev
             name: csao-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: csao-<< pipeline.git.tag >>-dev
             filters:
               <<: *filters
@@ -291,7 +291,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.csao
             name: csao-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: csao-<< pipeline.git.tag >>
             filters:
               <<: *filters
@@ -301,7 +301,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.csao.dr
             name: csao-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: csao-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
@@ -311,7 +311,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.njtr.dev
             name: njtr-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: njtr-<< pipeline.git.tag >>-dev
             filters:
               <<: *filters
@@ -321,7 +321,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.njtr
             name: njtr-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: njtr-<< pipeline.git.tag >>
             filters:
               <<: *filters
@@ -331,7 +331,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.njtr.dr
             name: njtr-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: njtr-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
@@ -341,7 +341,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.nysw.dev
             name: nysw-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: nysw-<< pipeline.git.tag >>-dev
             filters:
               <<: *filters
@@ -351,7 +351,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.nysw
             name: nysw-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: nysw-<< pipeline.git.tag >>
             filters:
               <<: *filters
@@ -361,7 +361,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.nysw.dr
             name: nysw-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: nysw-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
@@ -371,7 +371,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.sepa.dev
             name: sepa-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: sepa-<< pipeline.git.tag >>-dev
             filters:
               <<: *filters
@@ -381,7 +381,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.sepa
             name: sepa-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: sepa-<< pipeline.git.tag >>
             filters:
               <<: *filters
@@ -391,7 +391,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.sepa.dr
             name: sepa-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: sepa-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
@@ -401,7 +401,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.vrex.dev
             name: vrex-build-and-publish-interop
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: vrex-<< pipeline.git.tag >>-dev
             filters:
               <<: *filters
@@ -411,7 +411,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.vrex
             name: vrex-build-and-publish-prod
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: vrex-<< pipeline.git.tag >>
             filters:
               <<: *filters
@@ -421,7 +421,7 @@ workflows:
       - docker/publish:
             dockerfile: Dockerfile.vrex.dr
             name: vrex-build-and-publish-dr
-            image: $DOCKER_LOGIN/strolr-ui
+            image: $DOCKER_LOGIN/ricochet-ui
             tag: vrex-<< pipeline.git.tag >>-dr
             filters:
               <<: *filters
