@@ -1,8 +1,8 @@
 ##Build stage 1
 
-FROM node:20-alpine3.18 as builder
+FROM node:20-alpine3.18 AS builder
 WORKDIR /app
-ENV PATH /app/node_modules/.bin:$PATH
+ENV PATH=/app/node_modules/.bin:$PATH
 
 COPY package.json ./
 COPY package-lock.json ./
@@ -31,7 +31,7 @@ RUN cp .env.production.datasages.circleci .env
 #
 #
 
-RUN sed -i 's/ricochet-ui/ricochet-ui-prod/g' src/routes/Routes.js
+#RUN sed -i 's/ricochet-ui/ricochet-ui-prod/g' src/routes/Routes.js
 
 RUN npm install
 RUN npm run build
