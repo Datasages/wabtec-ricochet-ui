@@ -35,7 +35,7 @@ parameters:
   STROLR_Online:
         description: Deploy in to ECS in Datasages AWS
         type: boolean
-        default: false
+        default: true
 
 
 orbs:
