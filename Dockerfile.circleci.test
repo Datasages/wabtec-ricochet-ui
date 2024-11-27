@@ -31,7 +31,7 @@ RUN cp .env.production.datasages.circleci.test .env
 #
 #
 
-RUN sed -i 's/ricochet-ui/ricochet-ui-test/g' src/routes/Routes.js
+#RUN sed -i 's/ricochet-ui/ricochet-ui-test/g' src/routes/Routes.js
 
 RUN npm install
 RUN npm run build
