@@ -130,7 +130,7 @@ workflows:
             - aws-cli/setup:
               aws-access-key-id: AWS_ACCESS_KEY_ID
               aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          create_repo: false
+          create_repo: true
           dockerfile: Dockerfile.circleci
           path: .
           push_image: true          
