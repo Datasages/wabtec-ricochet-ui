@@ -124,43 +124,43 @@ workflows:
   
   build-and-push:
     jobs:
-      # - aws-ecr/build_and_push_image:
-      #     name: datasages-prod-build
-      #     auth:
-      #       - aws-cli/setup:
-      #         aws-access-key-id: AWS_ACCESS_KEY_ID
-      #         aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-      #     create_repo: true
-      #     dockerfile: Dockerfile.circleci
-      #     path: .
-      #     push_image: true          
-      #     repo: "${AWS_RESOURCE_NAME_PREFIX}-prod"
-      #     tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
-      #     context:
-      #       - railwaynet
-      #     filters:
-      #       branches:
-      #         only:
-      #           - main
+      - aws-ecr/build_and_push_image:
+          name: datasages-prod-build
+          auth:
+            - aws-cli/setup:
+              aws-access-key-id: AWS_ACCESS_KEY_ID
+              aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create_repo: true
+          dockerfile: Dockerfile.circleci
+          path: .
+          push_image: true          
+          repo: "${AWS_RESOURCE_NAME_PREFIX}-prod"
+          tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
+          context:
+            - railwaynet
+          filters:
+            branches:
+              only:
+                - main
 
-      # - aws-ecr/build_and_push_image:
-      #     name: datasages-api-test-build
-      #     auth:
-      #       - aws-cli/setup:
-      #         aws-access-key-id: AWS_ACCESS_KEY_ID
-      #         aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-      #     create_repo: true
-      #     dockerfile: Dockerfile.circleci.api-test
-      #     path: .
-      #     push_image: true          
-      #     repo: "${AWS_RESOURCE_NAME_PREFIX}-api-test"
-      #     tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
-      #     context:
-      #       - railwaynet
-      #     filters:
-      #       branches:
-      #         only:
-      #           - api-test
+      - aws-ecr/build_and_push_image:
+          name: datasages-api-test-build
+          auth:
+            - aws-cli/setup:
+              aws-access-key-id: AWS_ACCESS_KEY_ID
+              aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          create_repo: true
+          dockerfile: Dockerfile.circleci.api-test
+          path: .
+          push_image: true          
+          repo: "${AWS_RESOURCE_NAME_PREFIX}-api-test"
+          tag: ${CIRCLE_SHA1},latest,${CIRCLE_BRANCH}
+          context:
+            - railwaynet
+          filters:
+            branches:
+              only:
+                - api-test
 
       - aws-ecr/build_and_push_image:
           name: datasages-test-build
@@ -182,47 +182,47 @@ workflows:
                 - test                     
 
   update_service:
-    #when: << pipeline.parameters.STROLR_Online >>
+    when: << pipeline.parameters.STROLR_Online >>
     jobs:
-      # - aws-ecs/deploy_service_update:
-      #     name: datasages-prod-deploy
-      #     requires:
-      #       - datasages-prod-build
-      #     auth:
-      #     - aws-cli/setup:
-      #       aws-access-key-id: AWS_ACCESS_KEY_ID
-      #       aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-      #     cluster: "strolr-cluster"
-      #     container_image_name_updates: "container=ricochet-ui-prod-container,tag=${CIRCLE_SHA1}"
-      #     service_name: "ricochet-ui-prod-service"
-      #     family: "ricochet-ui-prod-task-definition"
-      #     context:
-      #       - railwaynet
-      #       - slack-secrets
-      #     filters:
-      #       branches:
-      #         only:
-      #           - main
+      - aws-ecs/deploy_service_update:
+          name: datasages-prod-deploy
+          requires:
+            - datasages-prod-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=ricochet-ui-prod-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-prod-service"
+          family: "ricochet-ui-prod-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - main
 
-      # - aws-ecs/deploy_service_update:
-      #     name: datasages-api-test-deploy
-      #     requires:
-      #       - datasages-api-test-build
-      #     auth:
-      #     - aws-cli/setup:
-      #       aws-access-key-id: AWS_ACCESS_KEY_ID
-      #       aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-      #     cluster: "strolr-cluster"
-      #     container_image_name_updates: "container=ricochet-ui-api-test-container,tag=${CIRCLE_SHA1}"
-      #     service_name: "ricochet-ui-api-test-service"
-      #     family: "ricochet-ui-api-test-task-definition"
-      #     context:
-      #       - railwaynet
-      #       - slack-secrets
-      #     filters:
-      #       branches:
-      #         only:
-      #           - api-test
+      - aws-ecs/deploy_service_update:
+          name: datasages-api-test-deploy
+          requires:
+            - datasages-api-test-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=ricochet-ui-api-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-api-test-service"
+          family: "ricochet-ui-api-test-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - api-test
 
       - aws-ecs/deploy_service_update:
           name: datasages-test-deploy
