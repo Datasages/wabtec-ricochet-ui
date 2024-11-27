@@ -120,6 +120,7 @@ workflows:
                 - rwn-prod
           context:
             - railwaynet
+            - docker_hub
   
   build-and-push:
     jobs:
