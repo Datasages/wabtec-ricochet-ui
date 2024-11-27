@@ -98,7 +98,7 @@ jobs:
       - build_tagged_image:
           scac: << parameters.scac >>
           environment: << parameters.environment >>
-          mark_list: "amtk,cdtx"
+          mark_list: "amtk"
 
 
 
@@ -108,8 +108,10 @@ workflows:
       - docker_build:
           matrix:
             parameters:
-              scac: ["amtk", "csao", "njtr", "nysw", "sepa", "vrex"]
-              environment: ["dev", "prod", "dr"]
+              scac: ["amtk"]
+              environment: ["dev"]
+              # scac: ["amtk", "csao", "njtr", "nysw", "sepa", "vrex"]
+              # environment: ["dev", "prod", "dr"]
           filters:
             branches:
               ignore:

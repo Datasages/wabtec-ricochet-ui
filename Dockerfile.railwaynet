@@ -3,7 +3,7 @@
 ARG scac
 ARG environment
 
-ARG mark_list="amtk,cdtx,idtx"
+ARG mark_list="amtk"
 
 FROM node:20-alpine3.18 as builder
 WORKDIR /app
