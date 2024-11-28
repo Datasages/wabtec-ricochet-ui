@@ -181,6 +181,26 @@ workflows:
               only:
                 - test                     
 
+      - aws-ecs/deploy_service_update:
+          name: datasages-test-deploy
+          requires:
+            - datasages-test-build
+          auth:
+          - aws-cli/setup:
+            aws-access-key-id: AWS_ACCESS_KEY_ID
+            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          cluster: "strolr-cluster"
+          container_image_name_updates: "container=ricochet-ui-test-container,tag=${CIRCLE_SHA1}"
+          service_name: "ricochet-ui-test-service"
+          family: "ricochet-ui-test-task-definition"
+          context:
+            - railwaynet
+            - slack-secrets
+          filters:
+            branches:
+              only:
+                - test
+
   update_service:
     # when: << pipeline.parameters.STROLR_Online >>
     
@@ -225,25 +245,7 @@ workflows:
       #         only:
       #           - api-test
 
-      - aws-ecs/deploy_service_update:
-          name: datasages-test-deploy
-          requires:
-            - datasages-test-build
-          auth:
-          - aws-cli/setup:
-            aws-access-key-id: AWS_ACCESS_KEY_ID
-            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          cluster: "strolr-cluster"
-          container_image_name_updates: "container=ricochet-ui-test-container,tag=${CIRCLE_SHA1}"
-          service_name: "ricochet-ui-test-service"
-          family: "ricochet-ui-test-task-definition"
-          context:
-            - railwaynet
-            - slack-secrets
-          filters:
-            branches:
-              only:
-                - test
+
 
   railwaynet-build-and-push:
     when: << pipeline.git.tag >> 
