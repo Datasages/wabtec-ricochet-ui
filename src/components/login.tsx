@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import useCookies from '../hooks/useCookies';
 import { registerUser } from '../utils/api';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 
 const Login: React.FC = () => {
   const { setAuthCookie } = useCookies();
@@ -32,29 +34,28 @@ const Login: React.FC = () => {
     <div className="login-container">
       <h2>Login</h2>
       <div className="input-container">
-        <label htmlFor="device">Device</label>
-        <input
+        <TextField
           id="device"
           type="text"
+          label="Device"
           value={device}
           onChange={(e) => setDevice(e.target.value)}
           placeholder="Enter device name"
         />
       </div>
       <div className="input-container">
-        <label htmlFor="pin">Enter PIN</label>
-        <input
+        <TextField
           id="pin"
+          label="Enter PIN"
           type="password"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="Enter PIN"
-          maxLength={6}
         />
       </div>
       {error && <p className="error-message">{error}</p>}
       <div >
-         <button onClick={handleLogin}>Log in</button>
+         <Button variant="contained" onClick={handleLogin}>Log in</Button>
       </div>
     </div>
   );
