@@ -201,10 +201,10 @@ workflows:
               only:
                 - test
 
-  update_service:
+#  update_service:
     # when: << pipeline.parameters.STROLR_Online >>
     
-    jobs:
+#    jobs:
       # - aws-ecs/deploy_service_update:
       #     name: datasages-prod-deploy
       #     requires:
