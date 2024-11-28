@@ -1,0 +1,46 @@
+##Build stage 1
+
+FROM node:20-alpine3.18 as builder
+WORKDIR /app
+ENV PATH /app/node_modules/.bin:$PATH
+
+COPY package.json ./
+COPY package-lock.json ./
+
+RUN echo 'running Dockerfile.amtk.dr'
+
+RUN sed -i 's/SCAC-apps.railwaynet.net/amtk-apps.dr.railwaynet.net/g' package.json
+
+RUN npm ci
+RUN npm install react-scripts@4.0.3 -g
+COPY . ./
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+RUN rm .env.production.local
+#RUN rm .env.production.rwn
+RUN rm .env.production
+RUN rm .env.development
+
+RUN \cp -r .env.production.rwn.dr .env.production
+RUN \cp -r .env.production.rwn.dr .env.development
+RUN sed -i 's/SCAC_URI-/amtk-/g' .env.development
+RUN sed -i 's/SCAC_URI-/amtk-/g' .env.production
+RUN sed -i 's/SCAC_VAR/AMTK/g' .env.development
+RUN sed -i 's/SCAC_VAR/AMTK/g' .env.production
+RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.development
+RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.production
+RUN cp .env.production .env
+RUN npm install
+RUN npm run build
+
+## Production stage 2
+FROM nginx:stable-alpine
+RUN sed -i '9i\\ttry_files $uri $uri/ /ricochet-ui/index.html;' /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/build /usr/share/nginx/html/ricochet-ui
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+
+
+
+
