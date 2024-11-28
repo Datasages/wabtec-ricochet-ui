@@ -44,10 +44,12 @@ body {
     font-size: 18px;
     padding: 20px;
     width: 150px;
+    height: 150px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    box-sizing: border-box; 
   }
   
   .big-button:hover {
@@ -63,8 +65,8 @@ body {
       max-width: 90%;
     }
     .big-button {
-      width: 120px;
-      height: 120px;
+      width: 150px;
+      height: 150px;
       font-size: 16px;
     }
   }
