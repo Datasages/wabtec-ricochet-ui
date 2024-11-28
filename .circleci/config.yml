@@ -182,47 +182,48 @@ workflows:
                 - test                     
 
   update_service:
-    when: << pipeline.parameters.STROLR_Online >>
+    # when: << pipeline.parameters.STROLR_Online >>
+    
     jobs:
-      - aws-ecs/deploy_service_update:
-          name: datasages-prod-deploy
-          requires:
-            - datasages-prod-build
-          auth:
-          - aws-cli/setup:
-            aws-access-key-id: AWS_ACCESS_KEY_ID
-            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          cluster: "strolr-cluster"
-          container_image_name_updates: "container=ricochet-ui-prod-container,tag=${CIRCLE_SHA1}"
-          service_name: "ricochet-ui-prod-service"
-          family: "ricochet-ui-prod-task-definition"
-          context:
-            - railwaynet
-            - slack-secrets
-          filters:
-            branches:
-              only:
-                - main
+      # - aws-ecs/deploy_service_update:
+      #     name: datasages-prod-deploy
+      #     requires:
+      #       - datasages-prod-build
+      #     auth:
+      #     - aws-cli/setup:
+      #       aws-access-key-id: AWS_ACCESS_KEY_ID
+      #       aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+      #     cluster: "strolr-cluster"
+      #     container_image_name_updates: "container=ricochet-ui-prod-container,tag=${CIRCLE_SHA1}"
+      #     service_name: "ricochet-ui-prod-service"
+      #     family: "ricochet-ui-prod-task-definition"
+      #     context:
+      #       - railwaynet
+      #       - slack-secrets
+      #     filters:
+      #       branches:
+      #         only:
+      #           - main
 
-      - aws-ecs/deploy_service_update:
-          name: datasages-api-test-deploy
-          requires:
-            - datasages-api-test-build
-          auth:
-          - aws-cli/setup:
-            aws-access-key-id: AWS_ACCESS_KEY_ID
-            aws-secret-access-key: AWS_SECRET_ACCESS_KEY
-          cluster: "strolr-cluster"
-          container_image_name_updates: "container=ricochet-ui-api-test-container,tag=${CIRCLE_SHA1}"
-          service_name: "ricochet-ui-api-test-service"
-          family: "ricochet-ui-api-test-task-definition"
-          context:
-            - railwaynet
-            - slack-secrets
-          filters:
-            branches:
-              only:
-                - api-test
+      # - aws-ecs/deploy_service_update:
+      #     name: datasages-api-test-deploy
+      #     requires:
+      #       - datasages-api-test-build
+      #     auth:
+      #     - aws-cli/setup:
+      #       aws-access-key-id: AWS_ACCESS_KEY_ID
+      #       aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+      #     cluster: "strolr-cluster"
+      #     container_image_name_updates: "container=ricochet-ui-api-test-container,tag=${CIRCLE_SHA1}"
+      #     service_name: "ricochet-ui-api-test-service"
+      #     family: "ricochet-ui-api-test-task-definition"
+      #     context:
+      #       - railwaynet
+      #       - slack-secrets
+      #     filters:
+      #       branches:
+      #         only:
+      #           - api-test
 
       - aws-ecs/deploy_service_update:
           name: datasages-test-deploy
