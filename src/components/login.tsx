@@ -3,13 +3,20 @@ import useCookies from '../hooks/useCookies';
 import { registerUser } from '../utils/api';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import { useNavigate } from 'react-router'; 
 
-const Login: React.FC = () => {
+interface LoginProps {
+  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>; 
+}
+
+const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const { setAuthCookie } = useCookies();
   const [device, setDevice] = useState<string>('');
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string>('');
 
+  const navigate = useNavigate();
+  
   const handleLogin = async () => {
     if (!device || !pin) {
       setError('Please enter both device and PIN');
@@ -22,7 +29,9 @@ const Login: React.FC = () => {
 
       setAuthCookie();
 
-      window.location.href = '/data-selection'; 
+      setAuthenticated(true);  
+ 
+      navigate('/');
 
     } catch (error) {
       setError('An error occurred during registration');
