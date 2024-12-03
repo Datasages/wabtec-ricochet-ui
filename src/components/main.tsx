@@ -17,7 +17,7 @@ const MainPage: React.FC = () => {
   }, []);
 
   const handleButtonClick = () => {
-    
+    window.location.href = '/data-selection'; 
   };
 
   return (
