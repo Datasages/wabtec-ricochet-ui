@@ -6,18 +6,21 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
+import { useNavigate } from 'react-router'; 
 
 const MainPage: React.FC = () => {
   const [items, setItems] = useState<string[]>([]);
   const [selectedItem, setSelectedItem] = useState<string>('');
   const [locoId, setLocoId] = useState<number>(0);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     fetchItems().then(data => setItems(data));
   }, []);
 
   const handleButtonClick = () => {
-    window.location.href = '/data-selection'; 
+    navigate('/data-selection');
   };
 
   return (
