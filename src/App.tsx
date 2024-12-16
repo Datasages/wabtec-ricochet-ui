@@ -25,7 +25,7 @@ const App: React.FC = () => {
   return (
       <Routes>
         <Route path="/" element={<MainPage />} />
-        <Route path="/data-selection" element={<ResultPage data={data} />} />
+        <Route path="/data-selection" element={<ResultPage />} />
         <Route path="/login" element={<Login setAuthenticated={setAuthenticated} />} />
       </Routes>
   );

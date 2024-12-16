@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router';
 
 const MainPage: React.FC = () => {
   const [items, setItems] = useState<string[]>([]);
-  const [selectedItem, setSelectedItem] = useState<string>('');
+  const [locomotime, setLocomotive] = useState<string>('');
   const [locoId, setLocoId] = useState<number>(0);
 
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ const MainPage: React.FC = () => {
   }, []);
 
   const handleButtonClick = () => {
-    navigate('/data-selection');
+    navigate(`/data-selection/?locomotive=${locomotime}&locoId=${locoId}`);
   };
 
   return (
@@ -29,8 +29,8 @@ const MainPage: React.FC = () => {
         <FormControl fullWidth margin="normal">
           <InputLabel>Locomotive</InputLabel>
           <Select
-            value={selectedItem}
-            onChange={(e) => setSelectedItem(e.target.value)}
+            value={locomotime}
+            onChange={(e) => setLocomotive(e.target.value)}
             label="Locomotive"
             fullWidth
           >
