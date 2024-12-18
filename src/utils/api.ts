@@ -1,14 +1,3 @@
-import { responsiveFontSizes } from "@mui/material";
-
-const handleErrors = async (response: Response) => {
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Something went wrong');
-    }
-    console.log('got response.body=', response.body)
-    return ""; //response.body.json();
-  };
-
 export const registerUser = async (device: string, pin: string) => {
     try {
       const URL = process.env.REACT_APP_REGISTER_URL || "";
@@ -24,21 +13,19 @@ export const registerUser = async (device: string, pin: string) => {
         },
         body: JSON.stringify({ device, pin }),
       });
-      const data = await response.text();
-      console.log ('data text =', data);
-      //const parsed = JSON.parse(data)
-      // console.log ('parsed =', parsed);
+      const data = await response.json();
       return data;
-      // return await handleErrors(response);
     } catch (error) {
-      throw error;
+        throw ('Failed to register device');
     }
 };
 
-export const fetchItems = async (): Promise<string[]> => {
-   /* const response = await fetch('/api/items'); 
-    const data = await response.json();*/
-    const data = { items: ["CDTX", "AMTK"] };
-    return data.items; 
-  };
+export const getMarks = async (): Promise<string[]> => {
+  const marksList = process.env.REACT_APP_MARKS || '';
+  const items = marksList.split(',')
+    .map(item => item.trim())  
+    .map(item => item.toUpperCase());  
+
+  return items; 
+};
   

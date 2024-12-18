@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchItems } from '../utils/api';
+import { getMarks } from '../utils/api';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
@@ -10,28 +10,37 @@ import { useNavigate } from 'react-router';
 
 const MainPage: React.FC = () => {
   const [items, setItems] = useState<string[]>([]);
-  const [locomotime, setLocomotive] = useState<string>('');
+  const [mark, setMark] = useState<string>('');
   const [locoId, setLocoId] = useState<number>(0);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchItems().then(data => setItems(data));
-  }, []);
+    const fetchMarks = async () => {
+      const data = await getMarks();  
+      setItems(data);  
+  
+      if (data && data.length > 0) {
+        setMark(data[0]);
+      }
+    };
+  
+    fetchMarks();  
+  }, []);  
 
   const handleButtonClick = () => {
-    navigate(`/data-selection/?locomotive=${locomotime}&locoId=${locoId}`);
+    navigate(`/data-selection/?mark=${mark}&locoId=${locoId}`);
   };
 
   return (
     <div className="main-container">
       <div className="content">
         <FormControl fullWidth margin="normal">
-          <InputLabel>Locomotive</InputLabel>
+          <InputLabel>Mark</InputLabel>
           <Select
-            value={locomotime}
-            onChange={(e) => setLocomotive(e.target.value)}
-            label="Locomotive"
+            value={mark}
+            onChange={(e) => setMark(e.target.value)}
+            label="Mark"
             fullWidth
           >
             {items.map((item, index) => (

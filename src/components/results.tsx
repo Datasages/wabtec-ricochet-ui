@@ -8,13 +8,12 @@ const ResultPage: React.FC = () => {
 
   const location = useLocation();
 
-  // Extract parameters from the query string
   const queryParams = new URLSearchParams(location.search);
-  const locomotive = queryParams.get('locomotive');
+  const mark = queryParams.get('mark');
   const locoId = queryParams.get('locoId');
 
   useEffect(() => {
-    if (locomotive && locoId) {
+    if (mark && locoId) {
       const fetchData = async () => {
         try {
           const URL = process.env.REACT_APP_GET_DATA_URL || "";
@@ -23,7 +22,7 @@ const ResultPage: React.FC = () => {
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ locomotive, locoId }),
+            body: JSON.stringify({ mark, locoId }),
           });
           const result = await response.json();
           setData(result);  
@@ -39,7 +38,7 @@ const ResultPage: React.FC = () => {
       setError('Missing parameters');
       setLoading(false);
     }
-  }, [locomotive, locoId]);
+  }, [mark, locoId]);
 
   if (loading) {
     return <div>Loading...</div>;
