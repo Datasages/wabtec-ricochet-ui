@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Login from './components/login';
 import MainPage from './components/main';
 import ResultPage from './components/results';
-import useCookies from './hooks/useCookies';
 
 const App: React.FC = () => {
   const [authenticated, setAuthenticated] = useState<boolean>(false);

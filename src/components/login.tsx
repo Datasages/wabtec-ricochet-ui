@@ -10,7 +10,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
-  const { setAuthCookie } = useCookies();
+  const { setCookies } = useCookies();
   const [device, setDevice] = useState<string>('');
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -27,11 +27,13 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
 
       const data = await registerUser(device, pin);
 
-      setAuthCookie();
-
-      setAuthenticated(true);  
- 
-      navigate('/');
+      if (data && data.token && data.guid) {
+        setCookies(data.token, data.guid);
+        setAuthenticated(true);  
+        navigate('/');
+      } else {
+        setError('An error occurred during registration');
+      }
 
     } catch (error) {
       setError('An error occurred during registration');

@@ -1,3 +1,6 @@
+export const COOKIE_TOKEN_NAME  = "RicochetToken";
+export const COOKIE_GUID_NAME = "RicochetGuid";
+
 export const registerUser = async (device: string, pin: string) => {
     try {
       const URL = process.env.REACT_APP_REGISTER_URL || "";
@@ -28,4 +31,3 @@ export const getMarks = async (): Promise<string[]> => {
 
   return items; 
 };
-  
