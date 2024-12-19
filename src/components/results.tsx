@@ -62,27 +62,30 @@ const ResultPage: React.FC = () => {
     return <div>Error: {error}</div>;
   }
 
+  const filteredData = Object.entries(data).filter(([key]) => key !== 'mark' && key !== 'loco');
+
   return (
     <div className="result-container">
       <h1>{mark}    {locoId}</h1>
-      {data && (
-        <table className="result-table">
-          <thead>
-            <tr>
-              <th>Parameter</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(data).map(([key, value]) => (
-              <tr key={key}>
-                <td>{key}</td>
-                <td>{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        )}
+      {filteredData.length > 0 && (
+        <div className="result-table">
+          {filteredData.map(([key, value]) => {
+            const isPass = typeof value === 'string' && value === 'PASS';
+            const isFail = typeof value === 'string' && value === 'FAIL';
+
+            return (
+              <div key={key} className="result-row">
+                <div className="parameter">{key}</div>
+                <div
+                  className={`value-box ${isPass ? 'pass' : isFail ? 'fail' : ''}`}
+                >
+                  {value}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

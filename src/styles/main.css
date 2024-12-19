@@ -173,3 +173,44 @@ body {
 .result-table tr:nth-child(even) {
   background-color: #f9f9f9;
 }
+
+.result-container {
+  margin: 20px;
+}
+
+.result-table {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.result-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.parameter {
+  font-size: 24px; /* Make the parameter text large */
+  font-weight: bold;
+  flex: 1;
+}
+
+.value-box {
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+  width: 150px;
+  margin-left: 20px;
+}
+
+.pass {
+  background-color: rgb(108, 184, 108);
+  color: white;
+}
+
+.fail {
+  background-color: rgb(228, 104, 170);
+  color: white;
+}
