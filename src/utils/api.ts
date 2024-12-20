@@ -31,3 +31,24 @@ export const getMarks = async (): Promise<string[]> => {
 
   return items; 
 };
+
+export const getRegistrationStatus = async (token: string, guid: string) => {
+  try {
+    const URL = process.env.REACT_APP_GET_REGISTER_STATUS_URL || "";
+    if (!URL) {
+      console.log('URL for getting register status was not set');
+      return false;
+    }
+
+    const response = await fetch(URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, guid }),
+    });
+    return response.ok; 
+  } catch (error) {
+      return false;
+  }
+};

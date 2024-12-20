@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import useCookies from '../hooks/useCookies';
-import { registerUser } from '../utils/api';
+import { registerUser, getRegistrationStatus } from '../utils/api';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router'; 
 
+const ATTEMPTS_NUMBER = 50;
+const TIMEOUT = 2000; 
+
 interface LoginProps {
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>; 
 }
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const { setCookies } = useCookies();
@@ -27,13 +32,34 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
 
       const data = await registerUser(device, pin);
 
-      if (data && data.token && data.guid) {
-        setCookies(data.token, data.guid);
-        setAuthenticated(true);  
-        navigate('/');
-      } else {
+      if (!data || !data.token || !data.guid) {
         setError('An error occurred during registration');
+        return;
       }
+
+      let attempts = 0;
+      let registrationStatus = false;
+      while (registrationStatus !== true && attempts++ < ATTEMPTS_NUMBER) {
+        registrationStatus = await getRegistrationStatus(data.token, data.guid);
+        if (!registrationStatus) {
+           await sleep(TIMEOUT);
+        }
+      }
+
+      if (attempts === ATTEMPTS_NUMBER) {
+        setError('Maximum attempts reached. Registration status not true.');
+        return;
+      } 
+
+      if (!registrationStatus) {
+        console.log("Registration status is not correct.")
+        setError('Registration status is not correct.');
+        return;
+      }
+
+      setCookies(data.token, data.guid);
+      setAuthenticated(true);  
+      navigate('/');
 
     } catch (error) {
       setError('An error occurred during registration');
