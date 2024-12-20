@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router';
 const MainPage: React.FC = () => {
   const [items, setItems] = useState<string[]>([]);
   const [mark, setMark] = useState<string>('');
-  const [locoId, setLocoId] = useState<number>(0);
+  const [locoId, setLocoId] = useState<string>("");
 
   const navigate = useNavigate();
 
@@ -53,16 +53,29 @@ const MainPage: React.FC = () => {
         <TextField
           id="locoId"
           label="Loco Id"
-          type="number"
+          type="text"  
           variant="outlined"
           value={locoId}
-          onChange={(e) => setLocoId(Number(e.target.value))}
+          onChange={(e) => {
+          const value = e.target.value;
+            // Only update the state if the value consists of digits (or is empty)
+            if (/^\d*$/.test(value)) {
+              setLocoId(value);  // Set only if the value is valid
+            }
+          }}
           placeholder="Enter Loco Id"
           fullWidth
           margin="normal"
           sx={{
-            backgroundColor: '#f4f4f4',  
-            borderRadius: '8px',        
+            backgroundColor: '#f4f4f4',
+            borderRadius: '8px',
+            'input[type="number"]::-webkit-outer-spin-button': {
+            display: 'none', 
+          },
+          'input[type="number"]::-webkit-inner-spin-button': {
+           display: 'none', 
+          },
+           '-moz-appearance': 'textfield', 
           }}
         />
         <div style={{padding: 10}}>
