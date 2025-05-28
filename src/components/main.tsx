@@ -6,7 +6,7 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router'; 
 
 const MainPage: React.FC = () => {
   const [items, setItems] = useState<string[]>([]);
@@ -17,23 +17,22 @@ const MainPage: React.FC = () => {
 
   useEffect(() => {
     const fetchMarks = async () => {
-      const data = await getMarks();
-      setItems(data);
-
+      const data = await getMarks();  
+      setItems(data);  
+  
       if (data && data.length > 0) {
         setMark(data[0]);
       }
     };
-
-    fetchMarks();
-  }, []);
+  
+    fetchMarks();  
+  }, []);  
 
   const handleButtonClick = () => {
     navigate(`/data-selection/?mark=${mark}&locoId=${locoId}`);
   };
 
   return (
-
     <div className="main-container">
       <div className="content">
         <FormControl fullWidth margin="normal">
@@ -54,11 +53,11 @@ const MainPage: React.FC = () => {
         <TextField
           id="locoId"
           label="Loco Id"
-          type="text"
+          type="text"  
           variant="outlined"
           value={locoId}
           onChange={(e) => {
-            const value = e.target.value;
+          const value = e.target.value;
             // Only update the state if the value consists of digits (or is empty)
             if (/^\d*$/.test(value)) {
               setLocoId(value);  // Set only if the value is valid
@@ -71,27 +70,27 @@ const MainPage: React.FC = () => {
             backgroundColor: '#f4f4f4',
             borderRadius: '8px',
             'input[type="number"]::-webkit-outer-spin-button': {
-              display: 'none',
-            },
-            'input[type="number"]::-webkit-inner-spin-button': {
-              display: 'none',
-            },
-            '-moz-appearance': 'textfield',
+            display: 'none', 
+          },
+          'input[type="number"]::-webkit-inner-spin-button': {
+           display: 'none', 
+          },
+           '-moz-appearance': 'textfield', 
           }}
         />
-        <div style={{ padding: 10 }}>
-          <Button className="big-button"
-            sx={{
-              width: 150,
+        <div style={{padding: 10}}>
+          <Button className="big-button" 
+             sx={{
+              width: 150,           
               height: 150,
-              padding: 0,
-              borderRadius: '50%',
-              fontSize: '16px',
-              boxSizing: 'border-box',
+              padding: 0,          
+              borderRadius: '50%',  
+              fontSize: '16px',      
+              boxSizing: 'border-box', 
             }}
             variant="contained" onClick={handleButtonClick}>
-            CHECK COMM PATH
-          </Button>
+              CHECK COMM PATH
+          </Button>  
         </div>
       </div>
     </div>

@@ -3,25 +3,25 @@ import useCookies from '../hooks/useCookies';
 import { registerUser, getRegistrationStatus } from '../utils/api';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router'; 
 
 const ATTEMPTS_NUMBER = 50;
-const TIMEOUT = 2000;
+const TIMEOUT = 2000; 
 
 interface LoginProps {
-  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
+  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>; 
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
-  const { setCookies, removeAuthentication } = useCookies();
+  const { setCookies } = useCookies();
   const [device, setDevice] = useState<string>('');
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string>('');
 
   const navigate = useNavigate();
-
+  
   const handleLogin = async () => {
     if (!device || !pin) {
       setError('Please enter both device and PIN');
@@ -42,27 +42,23 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
       while (registrationStatus !== true && attempts++ < ATTEMPTS_NUMBER) {
         registrationStatus = await getRegistrationStatus(data.token, data.guid);
         if (!registrationStatus) {
-          await sleep(TIMEOUT);
+           await sleep(TIMEOUT);
         }
       }
 
       if (attempts === ATTEMPTS_NUMBER) {
         setError('Maximum attempts reached. Registration status not true.');
-        removeAuthentication();
-        setAuthenticated(false);
         return;
-      }
+      } 
 
       if (!registrationStatus) {
         console.log("Registration status is not correct.")
         setError('Registration status is not correct.');
-        removeAuthentication();
-        setAuthenticated(false);
         return;
       }
 
       setCookies(data.token, data.guid);
-      setAuthenticated(true);
+      setAuthenticated(true);  
       navigate('/');
 
     } catch (error) {
@@ -96,7 +92,7 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
       </div>
       {error && <p className="error-message">{error}</p>}
       <div >
-        <Button variant="contained" onClick={handleLogin}>Log in</Button>
+         <Button variant="contained" onClick={handleLogin}>Log in</Button>
       </div>
     </div>
   );
