@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useCookies from '../hooks/useCookies';
-import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME} from '../utils/api';
+import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
+import { useNavigate } from 'react-router';
 
-const ResultPage: React.FC = () => {
+interface LoginProps {
+  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const [data, setData] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { getCookies } = useCookies();
+  const { setCookies, getCookies, removeAuthentication } = useCookies();
+  const navigate = useNavigate();
 
   const location = useLocation();
 
@@ -31,15 +37,20 @@ const ResultPage: React.FC = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(
-              { 
+              {
                 token: savedToken,
                 guid: savedGuid,
-                mark, 
+                mark,
                 "loco": locoId,
-               }),
+              }),
           });
+          if (!response.ok) {
+            removeAuthentication();
+            setAuthenticated(false);
+            navigate('/login');
+          }
           const result = await response.json();
-          setData(result);  
+          setData(result);
         } catch (error) {
           setError('Failed to fetch data');
         } finally {

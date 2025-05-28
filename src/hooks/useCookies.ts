@@ -31,7 +31,12 @@ const useCookies = () => {
     document.cookie = "isAuthenticated=false; max-age=0; path=/";
   };
 
-  return { setCookies, getCookies, removeAuthentication };
+  const removeCookies = (token: string, guid: string) => {
+    document.cookie = `${COOKIE_TOKEN_NAME}=${token}; path=/; max-age=0`;
+    document.cookie = `${COOKIE_GUID_NAME}=${guid}; path=/; max-age=0`;
+  }
+
+  return { setCookies, getCookies, removeAuthentication, removeCookies };
 };
 
 export default useCookies;

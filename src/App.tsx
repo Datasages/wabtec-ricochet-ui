@@ -6,7 +6,7 @@ import ResultPage from './components/results';
 
 const App: React.FC = () => {
   const [authenticated, setAuthenticated] = useState<boolean>(false);
-  const [data, setData] = useState<any>(null); 
+  const [data, setData] = useState<any>(null);
 
 
   // Check if the user is authenticated on app load
@@ -22,11 +22,14 @@ const App: React.FC = () => {
   }
 
   return (
-      <Routes>
-        <Route path="/" element={<MainPage />} />
-        <Route path="/data-selection" element={<ResultPage />} />
-        <Route path="/login" element={<Login setAuthenticated={setAuthenticated} />} />
-      </Routes>
+    <Routes>
+      <Route path="/" element={<MainPage />} />
+      <Route path="/data-selection" element={<ResultPage setAuthenticated={function (value: React.SetStateAction<boolean>): void {
+        throw new Error('Function not implemented.');
+      }} />} />
+      <Route path="/login" element={<Login setAuthenticated={setAuthenticated} />} />
+    </Routes>
+
   );
 };
 
