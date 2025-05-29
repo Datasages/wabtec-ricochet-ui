@@ -4,16 +4,17 @@ import useCookies from '../hooks/useCookies';
 import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
 import { useNavigate } from 'react-router';
 
+
 interface LoginProps {
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
+  const { getCookies, removeAuthentication } = useCookies();
   const [data, setData] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { setCookies, getCookies, removeAuthentication } = useCookies();
   const navigate = useNavigate();
 
   const location = useLocation();
@@ -22,47 +23,99 @@ const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const mark = queryParams.get('mark');
   const locoId = queryParams.get('locoId');
 
-  useEffect(() => {
-    if (mark && locoId) {
-      const fetchData = async () => {
-        try {
-          const URL = process.env.REACT_APP_GET_DATA_URL || "";
+  const getAuthentication = async () => {
+    const URL = process.env.REACT_APP_GET_AUTHSTATUS_URL || "";
+    const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-          const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
-          const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
+    try {
+      const authResponse = await fetch(URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guid: savedGuid }),
+      });
 
-          const response = await fetch(URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(
-              {
-                token: savedToken,
-                guid: savedGuid,
-                mark,
-                "loco": locoId,
-              }),
-          });
-          if (!response.ok) {
-            removeAuthentication();
-            setAuthenticated(false);
-            navigate('/login');
-          }
-          const result = await response.json();
-          setData(result);
-        } catch (error) {
-          setError('Failed to fetch data');
-        } finally {
-          setLoading(false);
-        }
-      };
+      if (authResponse.status === 401) {
+        // Explicit handling for unauthorized response
+        console.warn('Device deregistered or unauthorized');
+        removeAuthentication();
+        setAuthenticated(false);
+        return false;
+      }
 
-      fetchData();
-    } else {
-      setError('Missing parameters');
+      if (!authResponse.ok) {
+        // Handle other errors (e.g., 500)
+        console.error(`Unexpected error: ${authResponse.status}`);
+        return false;
+      }
+
+      return true;
+
+    } catch (error) {
+      // Network or other low-level error
+      console.error('Failed to check authentication:', error);
+      return false;
+    }
+  };
+
+
+  const fetchData = async () => {
+    try {
+      const URL = process.env.REACT_APP_GET_DATA_URL || "";
+
+      const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
+      const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
+
+      const response = await fetch(URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          {
+            token: savedToken,
+            guid: savedGuid,
+            mark,
+            "loco": locoId,
+          }),
+      });
+
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      setError('Failed to fetch data');
+    } finally {
       setLoading(false);
     }
+  };
+  /*
+    useEffect(() => {
+  
+      if (mark && locoId) {
+  
+        getAuthentication
+        fetchData();
+      } else {
+        setError('Missing parameters');
+        setLoading(false);
+      }
+    }, [mark, locoId]);
+  */
+
+  useEffect(() => {
+    const run = async () => {
+      const authOk = await getAuthentication();
+      if (authOk) {
+        if (mark && locoId) {
+          await fetchData();
+        } else {
+          setError('Missing parameters');
+          setLoading(false);
+        }
+      } else {
+        navigate('/login');
+      }
+    };
+    run();
   }, [mark, locoId]);
 
   if (loading) {

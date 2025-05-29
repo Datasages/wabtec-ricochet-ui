@@ -30,13 +30,15 @@ const useCookies = () => {
   const removeAuthentication = () => {
     document.cookie = "isAuthenticated=false; max-age=0; path=/";
   };
-
-  const removeCookies = (token: string, guid: string) => {
-    document.cookie = `${COOKIE_TOKEN_NAME}=${token}; path=/; max-age=0`;
-    document.cookie = `${COOKIE_GUID_NAME}=${guid}; path=/; max-age=0`;
-  }
-
-  return { setCookies, getCookies, removeAuthentication, removeCookies };
+  /*
+    const removeCookies = (token: string, guid: string) => {
+      document.cookie = `${COOKIE_TOKEN_NAME}=${token}; path=/; max-age=0`;
+      document.cookie = `${COOKIE_GUID_NAME}=${guid}; path=/; max-age=0`;
+    }
+  */
+  return { setCookies, getCookies, removeAuthentication };
 };
+
+
 
 export default useCookies;

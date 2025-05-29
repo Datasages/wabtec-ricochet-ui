@@ -23,7 +23,8 @@ const App: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/" element={<MainPage />} />
+      <Route path="/" element={<MainPage setAuthenticated={setAuthenticated} />} />
+
       <Route path="/data-selection" element={<ResultPage setAuthenticated={function (value: React.SetStateAction<boolean>): void {
         throw new Error('Function not implemented.');
       }} />} />

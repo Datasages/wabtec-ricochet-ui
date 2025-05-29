@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router';
 
-const ATTEMPTS_NUMBER = 50;
+const ATTEMPTS_NUMBER = 1800;
 const TIMEOUT = 2000;
 
 interface LoginProps {
@@ -43,6 +43,10 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
         registrationStatus = await getRegistrationStatus(data.token, data.guid);
         if (!registrationStatus) {
           await sleep(TIMEOUT);
+        } else {
+          setCookies(data.token, data.guid);
+          setAuthenticated(true);
+          navigate('/');
         }
       }
 
@@ -52,6 +56,7 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
         setAuthenticated(false);
         return;
       }
+
 
       if (!registrationStatus) {
         console.log("Registration status is not correct.")
@@ -73,7 +78,7 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
 
   return (
     <div className="login-container">
-      <h2>Login</h2>
+      <h2>Register</h2>
       <div className="input-container">
         <TextField
           id="device"
@@ -96,7 +101,7 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
       </div>
       {error && <p className="error-message">{error}</p>}
       <div >
-        <Button variant="contained" onClick={handleLogin}>Log in</Button>
+        <Button variant="contained" onClick={handleLogin}>Register</Button>
       </div>
     </div>
   );

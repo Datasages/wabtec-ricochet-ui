@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getMarks } from '../utils/api';
+import { checkAuth, getMarks } from '../utils/api';
+import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
+import useCookies from '../hooks/useCookies';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
@@ -8,24 +10,74 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import { useNavigate } from 'react-router';
 
-const MainPage: React.FC = () => {
+
+
+interface LoginProps {
+  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
+  const { getCookies, removeAuthentication } = useCookies();
   const [items, setItems] = useState<string[]>([]);
   const [mark, setMark] = useState<string>('');
   const [locoId, setLocoId] = useState<string>("");
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchMarks = async () => {
-      const data = await getMarks();
-      setItems(data);
+  const getAuthentication = async () => {
+    const URL = process.env.REACT_APP_GET_AUTHSTATUS_URL || "";
+    const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-      if (data && data.length > 0) {
-        setMark(data[0]);
+    try {
+      const authResponse = await fetch(URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guid: savedGuid }),
+      });
+
+      if (authResponse.status === 401) {
+        // Explicit handling for unauthorized response
+        console.warn('Device deregistered or unauthorized');
+        removeAuthentication();
+        setAuthenticated(false);
+        return false;
+      }
+
+      if (!authResponse.ok) {
+        // Handle other errors (e.g., 500)
+        console.error(`Unexpected error: ${authResponse.status}`);
+        return false;
+      }
+
+      return true;
+
+    } catch (error) {
+      // Network or other low-level error
+      console.error('Failed to check authentication:', error);
+      return false;
+    }
+  };
+
+
+  const fetchMarks = async () => {
+    const data = await getMarks();
+    setItems(data);
+
+    if (data && data.length > 0) {
+      setMark(data[0]);
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      const authOk = await getAuthentication();
+      if (authOk) {
+        await fetchMarks();
+      } else {
+        navigate('/login');
       }
     };
-
-    fetchMarks();
+    run();
   }, []);
 
   const handleButtonClick = () => {
