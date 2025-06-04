@@ -9,7 +9,7 @@ COPY package-lock.json ./
 
 RUN echo 'running Dockerfile.amtk.dev'
 
-RUN sed -i 's/SCAC-apps.railwaynet.net/amtk-apps.interop.railwaynet.net/g' package.json
+RUN sed -i 's/SCAC_URI-apps.railwaynet.net/amtk-apps.interop.railwaynet.net/g' package.json
 
 RUN npm ci
 RUN npm install react-scripts@4.0.3 -g
@@ -23,12 +23,7 @@ RUN rm .env.development
 
 RUN \cp -r .env.production.rwn.dev .env.production
 RUN \cp -r .env.production.rwn.dev .env.development
-RUN sed -i 's/SCAC_URI-/amtk-/g' .env.development
-RUN sed -i 's/SCAC_URI-/amtk-/g' .env.production
-RUN sed -i 's/SCAC_VAR/AMTK/g' .env.development
-RUN sed -i 's/SCAC_VAR/AMTK/g' .env.production
-RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.development
-RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.production
+
 RUN cp .env.production .env
 RUN npm install
 RUN npm run build

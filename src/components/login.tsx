@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
 import useCookies from '../hooks/useCookies';
-import { registerUser } from '../utils/api';
+import { registerUser, getRegistrationStatus } from '../utils/api';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import { useNavigate } from 'react-router';
 
-const Login: React.FC = () => {
-  const { setAuthCookie } = useCookies();
+const ATTEMPTS_NUMBER = 1800;
+const TIMEOUT = 2000;
+
+interface LoginProps {
+  setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
+  const { setCookies, removeAuthentication } = useCookies();
   const [device, setDevice] = useState<string>('');
   const [pin, setPin] = useState<string>('');
   const [error, setError] = useState<string>('');
+
+  const navigate = useNavigate();
 
   const handleLogin = async () => {
     if (!device || !pin) {
@@ -20,9 +32,43 @@ const Login: React.FC = () => {
 
       const data = await registerUser(device, pin);
 
-      setAuthCookie();
+      if (!data || !data.token || !data.guid) {
+        setError('An error occurred during registration');
+        return;
+      }
 
-      window.location.href = '/data-selection'; 
+      let attempts = 0;
+      let registrationStatus = false;
+      while (registrationStatus !== true && attempts++ < ATTEMPTS_NUMBER) {
+        registrationStatus = await getRegistrationStatus(data.token, data.guid);
+        if (!registrationStatus) {
+          await sleep(TIMEOUT);
+        } else {
+          setCookies(data.token, data.guid);
+          setAuthenticated(true);
+          navigate('/');
+        }
+      }
+
+      if (attempts === ATTEMPTS_NUMBER) {
+        setError('Maximum attempts reached. Registration status not true.');
+        removeAuthentication();
+        setAuthenticated(false);
+        return;
+      }
+
+
+      if (!registrationStatus) {
+        console.log("Registration status is not correct.")
+        setError('Registration status is not correct.');
+        removeAuthentication();
+        setAuthenticated(false);
+        return;
+      }
+
+      setCookies(data.token, data.guid);
+      setAuthenticated(true);
+      navigate('/');
 
     } catch (error) {
       setError('An error occurred during registration');
@@ -32,7 +78,7 @@ const Login: React.FC = () => {
 
   return (
     <div className="login-container">
-      <h2>Login</h2>
+      <h2>Register</h2>
       <div className="input-container">
         <TextField
           id="device"
@@ -55,7 +101,7 @@ const Login: React.FC = () => {
       </div>
       {error && <p className="error-message">{error}</p>}
       <div >
-         <Button variant="contained" onClick={handleLogin}>Log in</Button>
+        <Button variant="contained" onClick={handleLogin}>Register</Button>
       </div>
     </div>
   );

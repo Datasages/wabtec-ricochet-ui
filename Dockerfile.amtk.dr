@@ -23,12 +23,6 @@ RUN rm .env.development
 
 RUN \cp -r .env.production.rwn.dr .env.production
 RUN \cp -r .env.production.rwn.dr .env.development
-RUN sed -i 's/SCAC_URI-/amtk-/g' .env.development
-RUN sed -i 's/SCAC_URI-/amtk-/g' .env.production
-RUN sed -i 's/SCAC_VAR/AMTK/g' .env.development
-RUN sed -i 's/SCAC_VAR/AMTK/g' .env.production
-RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.development
-RUN sed -i 's/MARK_LIST/amtk,cdtx,idtx,rncx,wdtx/g' .env.production
 RUN cp .env.production .env
 RUN npm install
 RUN npm run build
