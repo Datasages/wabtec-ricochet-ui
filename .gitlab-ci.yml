@@ -1,0 +1,272 @@
+# =============================================================================
+# GitLab CI/CD Pipeline for wabtec-ricochet-ui
+# Builds all customer/environment combinations using matrix strategy
+# =============================================================================
+
+image: node:20-alpine
+
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_NAME: ricochet-ui
+
+stages:
+  - test
+  - build
+  - docker-build
+  - release
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - node_modules/
+
+# =============================================================================
+# Test Stage
+# =============================================================================
+
+lint:
+  stage: test
+  script:
+    - npm ci
+    - npm run lint || true
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_TAG
+
+unit-tests:
+  stage: test
+  script:
+    - npm ci
+    - npm run test -- --watchAll=false --passWithNoTests
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_TAG
+
+# =============================================================================
+# Build Verification Stage
+# =============================================================================
+
+build-verification:
+  stage: build
+  script:
+    - npm ci
+    - cp .env.template .env
+    - npm run build
+  artifacts:
+    paths:
+      - build/
+    expire_in: 1 hour
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_TAG
+
+# =============================================================================
+# Docker Build Stage - Matrix Jobs for All Combinations
+# =============================================================================
+
+.docker-build-template:
+  stage: docker-build
+  image: docker:27
+  services:
+    - name: docker:dind
+      command: ["--tls=false"]
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD} | base64)\"}}}" > ~/.docker/config.json
+  script:
+    # Determine marks from customer
+    - |
+      case "${SCAC}" in
+        amtk) MARK_LIST="AMTK,CDTX,IDTX,WDTX" ;;
+        csao) MARK_LIST="csao" ;;
+        njtr) MARK_LIST="njtr" ;;
+        nysw) MARK_LIST="nysw" ;;
+        sepa) MARK_LIST="sepa" ;;
+        vrex) MARK_LIST="vrex" ;;
+        *) MARK_LIST="${SCAC}" ;;
+      esac
+
+    # Set version tag
+    - VERSION=${CI_COMMIT_TAG:-${CI_COMMIT_SHORT_SHA}}
+    - BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Build image
+    - echo "Building ${SCAC}-${ENVIRONMENT} with marks ${MARK_LIST}"
+    - |
+      docker build \
+        --build-arg SCAC=${SCAC} \
+        --build-arg ENVIRONMENT=${ENVIRONMENT} \
+        --build-arg MARK_LIST="${MARK_LIST}" \
+        --build-arg BUILD_DATE="${BUILD_DATE}" \
+        --build-arg GIT_COMMIT="${CI_COMMIT_SHA}" \
+        --build-arg VERSION="${VERSION}" \
+        --build-arg BUILD_ID="${CI_COMMIT_SHORT_SHA}" \
+        -t ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION} \
+        .
+
+    # Push image
+    - docker push ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION}
+
+    # Tag and push as latest only on main/master branch or tags
+    - |
+      if [ -n "$CI_COMMIT_TAG" ] || [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
+        docker tag ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION} ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-latest
+        docker push ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-latest
+      fi
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+
+# -----------------------------------------------------------------------------
+# Production Environment Builds
+# -----------------------------------------------------------------------------
+
+docker-build-amtk-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: amtk
+    ENVIRONMENT: prod
+
+docker-build-csao-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: csao
+    ENVIRONMENT: prod
+
+docker-build-njtr-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: njtr
+    ENVIRONMENT: prod
+
+docker-build-nysw-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: nysw
+    ENVIRONMENT: prod
+
+docker-build-sepa-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: sepa
+    ENVIRONMENT: prod
+
+docker-build-vrex-prod:
+  extends: .docker-build-template
+  variables:
+    SCAC: vrex
+    ENVIRONMENT: prod
+
+# -----------------------------------------------------------------------------
+# Dev/Interop Environment Builds
+# -----------------------------------------------------------------------------
+
+docker-build-amtk-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: amtk
+    ENVIRONMENT: dev
+
+docker-build-csao-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: csao
+    ENVIRONMENT: dev
+
+docker-build-njtr-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: njtr
+    ENVIRONMENT: dev
+
+docker-build-nysw-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: nysw
+    ENVIRONMENT: dev
+
+docker-build-sepa-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: sepa
+    ENVIRONMENT: dev
+
+docker-build-vrex-dev:
+  extends: .docker-build-template
+  variables:
+    SCAC: vrex
+    ENVIRONMENT: dev
+
+# -----------------------------------------------------------------------------
+# DR Environment Builds
+# -----------------------------------------------------------------------------
+
+docker-build-amtk-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: amtk
+    ENVIRONMENT: dr
+
+docker-build-csao-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: csao
+    ENVIRONMENT: dr
+
+docker-build-njtr-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: njtr
+    ENVIRONMENT: dr
+
+docker-build-nysw-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: nysw
+    ENVIRONMENT: dr
+
+docker-build-sepa-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: sepa
+    ENVIRONMENT: dr
+
+docker-build-vrex-dr:
+  extends: .docker-build-template
+  variables:
+    SCAC: vrex
+    ENVIRONMENT: dr
+
+# =============================================================================
+# Release Stage
+# =============================================================================
+
+create-release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+    - echo "Images available:"
+    - |
+      for scac in amtk csao njtr nysw sepa vrex; do
+        for env in prod dev dr; do
+          echo "  - ${CI_REGISTRY_IMAGE}:${scac}-${env}-${CI_COMMIT_TAG}"
+        done
+      done
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Release $CI_COMMIT_TAG"
+    description: "Release $CI_COMMIT_TAG of Ricochet UI"
+  rules:
+    - if: $CI_COMMIT_TAG

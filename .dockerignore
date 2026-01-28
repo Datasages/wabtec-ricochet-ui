@@ -1,0 +1,62 @@
+# =============================================================================
+# Docker Ignore File for Ricochet UI
+# =============================================================================
+
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output (we build inside container)
+build
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE and Editor
+.idea
+.vscode
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD (not needed in build context)
+.circleci
+.github
+
+# Documentation
+*.md
+docs/
+
+# Old Dockerfiles (will be removed after migration)
+Dockerfile.*
+
+# Environment files (using template)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.production.*
+!.env.template
+
+# Test artifacts
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+
+# Scripts (not needed in image)
+scripts/
+
+# Plan files
+*.plan.md
