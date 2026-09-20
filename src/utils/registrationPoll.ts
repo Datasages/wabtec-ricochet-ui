@@ -20,8 +20,9 @@ export interface RegistrationPollDeps {
 }
 
 /**
- * Polls for registration approval with exponential backoff, bounded by a
- * wall-clock budget. Returns true on approval, false once the budget is spent.
+ * Polls for registration approval with exponential backoff, bounded by an
+ * elapsed-time budget measured on the injected monotonic clock. Returns true on
+ * approval, false once the budget is spent.
  */
 export const waitForRegistration = async ({
   check,

@@ -1,6 +1,10 @@
 import { waitForRegistration } from './registrationPoll';
 
 describe('waitForRegistration', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   /**
    * Fake monotonic clock. Only sleep() advances it, so a test controls elapsed
    * time exactly and the suite never waits in real time.
@@ -10,9 +14,6 @@ describe('waitForRegistration', () => {
     return {
       now: () => t,
       sleep: async (ms: number) => {
-        t += ms;
-      },
-      advance: (ms: number) => {
         t += ms;
       },
     };
@@ -98,11 +99,18 @@ describe('waitForRegistration', () => {
   });
 
   test('is driven by the injected clock, not the wall clock', async () => {
-    // A device whose RTC steps forward during registration must not be treated
-    // as having exhausted the budget. The deadline reads only `now`.
+    // A device whose RTC steps forward mid-registration must not be treated as
+    // having exhausted the budget. The wall clock is made to jump past the
+    // budget between the first and second reading, so an implementation that
+    // reached for Date.now() would give up before its first poll and return
+    // false. A constant mock would not discriminate: both implementations
+    // would pass.
     const clock = makeClock();
     const realNow = Date.now();
-    jest.spyOn(Date, 'now').mockReturnValue(realNow + 5 * 60 * 60 * 1000);
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(realNow)
+      .mockReturnValue(realNow + 2 * 60 * 60 * 1000);
 
     let calls = 0;
     const approved = await waitForRegistration({
@@ -115,6 +123,6 @@ describe('waitForRegistration', () => {
     });
 
     expect(approved).toBe(true);
-    (Date.now as jest.Mock).mockRestore();
+    expect(calls).toBe(2);
   });
 });

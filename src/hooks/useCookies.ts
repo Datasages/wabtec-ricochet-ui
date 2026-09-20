@@ -24,7 +24,16 @@ const useCookies = () => {
       const separator = entry.indexOf('=');
       if (separator === -1) continue;
       if (entry.slice(0, separator) === name) {
-        return decodeURIComponent(entry.slice(separator + 1));
+        const raw = entry.slice(separator + 1);
+        try {
+          return decodeURIComponent(raw);
+        } catch {
+          // Builds before the encoding fix stored values raw, so a lone '%' is
+          // not a valid escape and decodeURIComponent throws. Returning the raw
+          // value keeps a deployed device working instead of throwing out of
+          // the caller's useEffect, which would leave the field UI blank.
+          return raw;
+        }
       }
     }
     return null;

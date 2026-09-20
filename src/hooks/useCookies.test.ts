@@ -148,6 +148,17 @@ describe('useCookies', () => {
     expect(getCookies(AUTH_FLAG_NAME)).toBe('true');
   });
 
+  test('getCookies returns a legacy un-encoded value rather than throwing', () => {
+    // Every deployed build stored values raw, so a lone '%' is not a valid
+    // escape. decodeURIComponent throws URIError on these, and the callers read
+    // cookies outside their try blocks.
+    captureWrites(`${COOKIE_TOKEN_NAME}=tok%2; ${COOKIE_GUID_NAME}=50%`);
+    const { getCookies } = useCookies();
+
+    expect(getCookies(COOKIE_TOKEN_NAME)).toBe('tok%2');
+    expect(getCookies(COOKIE_GUID_NAME)).toBe('50%');
+  });
+
   test('getCookies returns null on an empty cookie jar', () => {
     captureWrites('');
     const { getCookies } = useCookies();
