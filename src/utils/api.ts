@@ -1,5 +1,10 @@
 export const COOKIE_TOKEN_NAME = "RicochetToken";
 export const COOKIE_GUID_NAME = "RicochetGuid";
+export const AUTH_FLAG_NAME = "isAuthenticated";
+
+// The app is served under a sub-path (e.g. /ricochet-ui). Cookie paths and the
+// router basename must agree, so both read this one value.
+export const BASE_PATH = process.env.REACT_APP_BASE_PATH || "";
 
 export const registerUser = async (device: string, pin: string) => {
   try {

@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
 import useCookies from '../hooks/useCookies';
 import { registerUser, getRegistrationStatus } from '../utils/api';
+import { waitForRegistration } from '../utils/registrationPoll';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router';
-
-const BASE_DELAY_MS = 2000;
-const MAX_DELAY_MS = 30000;
-const MAX_POLL_MS = 60 * 60 * 1000;
 
 interface LoginProps {
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise(resolve => { setTimeout(resolve, ms); });
 
 const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const { setCookies, removeAuthentication } = useCookies();
@@ -38,16 +35,11 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
         return;
       }
 
-      const start = Date.now();
-      let delay = BASE_DELAY_MS;
-      let registrationStatus = false;
-      while (!registrationStatus && Date.now() - start < MAX_POLL_MS) {
-        registrationStatus = await getRegistrationStatus(data.token, data.guid);
-        if (!registrationStatus) {
-          await sleep(delay);
-          delay = Math.min(delay * 2, MAX_DELAY_MS);
-        }
-      }
+      const registrationStatus = await waitForRegistration({
+        check: () => getRegistrationStatus(data.token, data.guid),
+        sleep,
+        now: () => performance.now(),
+      });
 
       if (!registrationStatus) {
         setError('Registration was not approved in time. Please try again.');
