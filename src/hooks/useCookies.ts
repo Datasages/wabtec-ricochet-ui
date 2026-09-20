@@ -16,7 +16,7 @@ const useCookies = () => {
   const getCookies = (name: string) => {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
     return null;
   };
 
@@ -27,6 +27,7 @@ const useCookies = () => {
     expire(AUTH_FLAG_NAME);
     expire(COOKIE_TOKEN_NAME);
     expire(COOKIE_GUID_NAME);
+    document.cookie = `${AUTH_FLAG_NAME}=; max-age=0; SameSite=Strict`;
   };
 
   return { setCookies, getCookies, removeAuthentication };
