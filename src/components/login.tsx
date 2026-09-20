@@ -5,8 +5,9 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router';
 
-const ATTEMPTS_NUMBER = 1800;
-const TIMEOUT = 2000;
+const BASE_DELAY_MS = 2000;
+const MAX_DELAY_MS = 30000;
+const MAX_POLL_MS = 60 * 60 * 1000;
 
 interface LoginProps {
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
@@ -37,30 +38,19 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
         return;
       }
 
-      let attempts = 0;
+      const start = Date.now();
+      let delay = BASE_DELAY_MS;
       let registrationStatus = false;
-      while (registrationStatus !== true && attempts++ < ATTEMPTS_NUMBER) {
+      while (!registrationStatus && Date.now() - start < MAX_POLL_MS) {
         registrationStatus = await getRegistrationStatus(data.token, data.guid);
         if (!registrationStatus) {
-          await sleep(TIMEOUT);
-        } else {
-          setCookies(data.token, data.guid);
-          setAuthenticated(true);
-          navigate('/');
+          await sleep(delay);
+          delay = Math.min(delay * 2, MAX_DELAY_MS);
         }
       }
 
-      if (attempts === ATTEMPTS_NUMBER) {
-        setError('Maximum attempts reached. Registration status not true.');
-        removeAuthentication();
-        setAuthenticated(false);
-        return;
-      }
-
-
       if (!registrationStatus) {
-        console.log("Registration status is not correct.")
-        setError('Registration status is not correct.');
+        setError('Registration was not approved in time. Please try again.');
         removeAuthentication();
         setAuthenticated(false);
         return;
