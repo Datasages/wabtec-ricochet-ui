@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import useCookies from '../hooks/useCookies';
 import { registerUser, getRegistrationStatus } from '../utils/api';
+import { waitForRegistration } from '../utils/registrationPoll';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import { useNavigate } from 'react-router';
-
-const ATTEMPTS_NUMBER = 1800;
-const TIMEOUT = 2000;
 
 interface LoginProps {
   setAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise(resolve => { setTimeout(resolve, ms); });
 
 const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const { setCookies, removeAuthentication } = useCookies();
@@ -37,30 +35,14 @@ const Login: React.FC<LoginProps> = ({ setAuthenticated }) => {
         return;
       }
 
-      let attempts = 0;
-      let registrationStatus = false;
-      while (registrationStatus !== true && attempts++ < ATTEMPTS_NUMBER) {
-        registrationStatus = await getRegistrationStatus(data.token, data.guid);
-        if (!registrationStatus) {
-          await sleep(TIMEOUT);
-        } else {
-          setCookies(data.token, data.guid);
-          setAuthenticated(true);
-          navigate('/');
-        }
-      }
-
-      if (attempts === ATTEMPTS_NUMBER) {
-        setError('Maximum attempts reached. Registration status not true.');
-        removeAuthentication();
-        setAuthenticated(false);
-        return;
-      }
-
+      const registrationStatus = await waitForRegistration({
+        check: () => getRegistrationStatus(data.token, data.guid),
+        sleep,
+        now: () => performance.now(),
+      });
 
       if (!registrationStatus) {
-        console.log("Registration status is not correct.")
-        setError('Registration status is not correct.');
+        setError('Registration was not approved in time. Please try again.');
         removeAuthentication();
         setAuthenticated(false);
         return;

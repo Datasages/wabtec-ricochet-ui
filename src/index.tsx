@@ -4,10 +4,11 @@ import './styles/globals.css';
 import './styles/main.css'
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { BASE_PATH } from './utils/api';
 
 const rootElement = document.getElementById('root') as HTMLElement;
 
-const basename = process.env.REACT_APP_BASE_PATH || '';
+const basename = BASE_PATH;
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(

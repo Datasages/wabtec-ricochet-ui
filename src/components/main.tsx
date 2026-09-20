@@ -84,10 +84,19 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
     navigate(`/data-selection/?mark=${mark}&locoId=${locoId}`);
   };
 
+  const handleSignOut = () => {
+    removeAuthentication();
+    setAuthenticated(false);
+    navigate('/login');
+  };
+
   return (
 
     <div className="main-container">
       <div className="content">
+        <div style={{ textAlign: 'right' }}>
+          <Button variant="text" onClick={handleSignOut}>Sign out</Button>
+        </div>
         <FormControl fullWidth margin="normal">
           <InputLabel>Mark</InputLabel>
           <Select
