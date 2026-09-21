@@ -16,6 +16,16 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Same shape and same keys as release.yml, so the configuration this job
+# validates is the configuration that job publishes. Stated as variables rather
+# than inline literals because the mark list is a live business value -- AMTK's
+# gained CDTX/IDTX/WDTX at some point -- and a copy that drifts means CI
+# green-lights a build nobody ships.
+env:
+  SCAC: amtk
+  MARK_LIST: AMTK,CDTX,IDTX,WDTX
+  ENVIRONMENT: prod
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -32,6 +42,14 @@ jobs:
       # makes a build reproducible.
       - name: Install dependencies
         run: npm ci
+
+      # Its own step rather than relying on the build. react-scripts lints
+      # through eslint-webpack-plugin, which only sees modules in the webpack
+      # graph -- the two test files are not, so `react-app/jest` would never be
+      # exercised. --max-warnings 0 because eslint exits 0 on warnings and would
+      # otherwise gate nothing.
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
 
       # CI=true makes react-scripts run once and exit rather than watching.
       # --passWithNoTests is NOT set: this repo has real tests
@@ -61,8 +79,6 @@ jobs:
       # the pull request. release.yml runs only on a tag, and without this the
       # first exercise of the Dockerfile would be a tag that then has to be
       # deleted and re-cut.
-      #
-      # AMTK only, matching release.yml. See that file for why one railroad.
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build the image without publishing
@@ -72,7 +88,7 @@ jobs:
           platforms: linux/amd64
           push: false
           build-args: |
-            SCAC=amtk
-            ENVIRONMENT=prod
-            MARK_LIST=AMTK,CDTX,IDTX,WDTX
+            SCAC=${{ env.SCAC }}
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            MARK_LIST=${{ env.MARK_LIST }}
             BUILD_ID=${{ github.sha }}

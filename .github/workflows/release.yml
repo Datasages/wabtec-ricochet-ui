@@ -22,21 +22,45 @@ env:
   # must be named. (Cost this project five release runs in collins-strolr-api.)
   IMAGE_NAME: ricochet-ui
 
-  # AMTK is the only railroad with `ricochet-enabled = true` in the deployment
-  # Terraform, so it is the only one whose image anything pulls. The GitLab
-  # pipeline builds all six SCACs across three environments because Wabtec's
-  # registry serves them; publishing eighteen images here that nothing
-  # references would be noise. Adding a railroad is one entry in the matrix
-  # below, not a rewrite.
-  SCAC: amtk
-  MARK_LIST: AMTK,CDTX,IDTX,WDTX
+  # Docker Hub carries PROD images only. The Dockerfile treats ENVIRONMENT as a
+  # real build dimension -- it selects the FQDN subdomain and the SSO realm --
+  # but the published tag below encodes only SCAC and version, so a dev or dr
+  # build pushed from here would overwrite the prod image at an identical tag,
+  # differing only in baked-in URLs and with nothing to signal it. If non-prod
+  # images ever need publishing here, the tag needs an environment segment
+  # FIRST. GitLab does carry the dimension (`${SCAC}-${ENVIRONMENT}-${VERSION}`)
+  # because its registry serves all three.
+  ENVIRONMENT: prod
 
 jobs:
   publish:
     runs-on: ubuntu-latest
 
+    # AMTK is the only railroad with `ricochet-enabled = true` in the deployment
+    # Terraform, so it is the only one whose image anything pulls. That Terraform
+    # lives in another repository and is NOT checkable from here -- it is written
+    # down because a reader cannot confirm it, and it is the load-bearing reason
+    # this publishes one image where .gitlab-ci.yml publishes eighteen (6 SCACs
+    # x 3 environments, into Wabtec's registry).
+    #
+    # A matrix with one entry, rather than two workflow-level variables, so that
+    # adding a railroad really is one more entry. `marks` has to travel with
+    # `scac` because it is a function of it.
+    strategy:
+      matrix:
+        include:
+          - scac: amtk
+            marks: AMTK,CDTX,IDTX,WDTX
+
     # Appropriate here and nowhere else in this repo: this job consumes a deploy
     # secret, and a tag push requires write access so it cannot come from a fork.
+    #
+    # ⚠️ Fork-safety is NOT what bounds this secret. The environment's deployment
+    # branch policy is, and it must be set to a custom rule matching tag `v*`
+    # with no branch rule. Left at "all branches", ANY job in this repo that
+    # names this environment can draw DOCKERHUB_TOKEN -- including a
+    # pull_request-triggered one on a same-repo branch.
+    #
     # It does NOT follow that the tagged commit reached main -- verify that
     # yourself before tagging, which is why the full build and test run again
     # below rather than being inherited from ci.yml.
@@ -45,6 +69,25 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # Fail in seconds with a readable message rather than after the install,
+      # test and version steps have spent their minutes, only to die at
+      # docker/login-action with "Username and password required". The secret is
+      # per-repository even though the environment shares a name with the one in
+      # collins-strolr-api, so a new repo starts without it.
+      - name: The deploy credential must be present
+        env:
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::DOCKERHUB_TOKEN is not set on the Datasages Development environment of this repository. Environment secrets do not carry across repositories."
+            exit 1
+          fi
+          if [ -z "$USERNAME" ]; then
+            echo "::error::DOCKERHUB_USERNAME is not set. It is expected to be a Datasages organization variable."
+            exit 1
+          fi
+
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
         with:
           node-version: '20'
@@ -52,6 +95,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
 
       - name: Test
         run: npm test -- --watchAll=false
@@ -64,10 +110,8 @@ jobs:
       #
       # The `v` is stripped here and the bare result labels the image. Git tags
       # carry the v by convention; image tags do not. The deployment Terraform
-      # lives in another repo and pins `ricochet-ui-version = "amtk-1.0.2"`, so
-      # the published tag must read `amtk-<version>` -- that shape is not
-      # checkable from this repo, which is why it is written down rather than
-      # left implied.
+      # pins `ricochet-ui-version = "amtk-1.0.2"`, so the published tag must read
+      # `amtk-<version>` -- another cross-repo fact not checkable from here.
       - name: Tag and package.json version must agree
         id: version
         run: |
@@ -79,6 +123,10 @@ jobs:
             exit 1
           fi
           echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Record the build date
+        id: builddate
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
@@ -97,13 +145,14 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            SCAC=${{ env.SCAC }}
-            ENVIRONMENT=prod
-            MARK_LIST=${{ env.MARK_LIST }}
+            SCAC=${{ matrix.scac }}
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            MARK_LIST=${{ matrix.marks }}
             BUILD_ID=${{ github.sha }}
             GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.builddate.outputs.date }}
             VERSION=${{ steps.version.outputs.version }}
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.SCAC }}-${{ steps.version.outputs.version }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
 
       # Values arrive as env, not as ${{ }} interpolated into the script.
       # VERSION derives from the tag name, and a git refname may legally contain
@@ -112,7 +161,7 @@ jobs:
       - name: Record what was published
         env:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          TAG: ${{ env.SCAC }}-${{ steps.version.outputs.version }}
+          TAG: ${{ matrix.scac }}-${{ steps.version.outputs.version }}
           COMMIT: ${{ github.sha }}
         run: |
           echo "### Published" >> "$GITHUB_STEP_SUMMARY"
@@ -122,3 +171,5 @@ jobs:
           echo "Built from \`$COMMIT\`." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Pin this exact tag in the Terraform. No \`latest\` is published." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The tag is MUTABLE: no tag ruleset protects \`v*\` here, and Docker Hub tags are overwritable, so a re-cut tag republishes over this one. Pin the digest instead if that matters." >> "$GITHUB_STEP_SUMMARY"
