@@ -19,8 +19,11 @@
 #      over-eager SPA fallback.
 #
 # Both workflows call this. ci.yml runs it on a pull request; release.yml runs
-# it against the image it is about to publish, because a tag need not have come
-# from a commit that passed ci.yml — which is how 1.0.3 reached Docker Hub.
+# it against the image it is about to publish. 1.0.3 was NOT published because
+# a tag skipped CI — it came from the PR #21 merge commit, which ci.yml ran on
+# and passed. It shipped because nothing ever STARTED the image. The release
+# path gets its own call anyway, since a tag genuinely need not come from a
+# commit that reached main.
 #
 # Usage: verify-image.sh <image-ref> [base-path] [host-port]
 
@@ -31,17 +34,26 @@ BASE_PATH="${2:-ricochet-ui}"
 PORT="${3:-8080}"
 CONTAINER="verify-${BASE_PATH}-$$"
 
-docker run -d --name "$CONTAINER" -p "${PORT}:80" "$IMAGE" >/dev/null
-
-# Cleanup on EVERY exit path, not just the ones written out below. Without this
-# a `set -e` abort leaves the container holding its name and port, which costs
-# nothing on a throwaway GitHub runner and breaks every subsequent run on a
-# self-hosted one. The logs go out first so a startup failure leaves evidence.
+# Registered BEFORE `docker run`, which is the whole point. `docker run` can
+# create the container and then fail to start it — an already-allocated host
+# port is the common case — and with the trap installed afterwards, `set -e`
+# aborts first and leaves that container behind holding its name. That is
+# exactly the self-hosted-runner leak this trap exists to prevent, so
+# installing it late made the guarantee false in its own headline case.
+#
+# `cleanup` tolerates a container that was never created: both commands end
+# in `|| true`.
 cleanup() {
   docker logs "$CONTAINER" 2>&1 | tail -30 || true
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+# Loopback only. The script talks to nothing but localhost, and ci.yml runs on
+# `pull_request`, so on a self-hosted runner a fork's Dockerfile and served
+# content would otherwise be reachable from the runner's network for the
+# duration of the check.
+docker run -d --name "$CONTAINER" -p "127.0.0.1:${PORT}:80" "$IMAGE" >/dev/null
 
 ready=""
 for _ in $(seq 1 30); do

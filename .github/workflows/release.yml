@@ -138,53 +138,55 @@ jobs:
       # BUILD_ID carries the commit into the built bundle and the image labels.
       # The images built by hand before this pipeline existed carry "unknown",
       # which is why identifying what a deployed tag contained meant guessing.
-      # Built and loaded locally FIRST, verified, and only then pushed. The
-      # second build-push-action below is a cache hit, so this costs a verify
-      # rather than a second build.
+      # ONE build, loaded locally, verified, then pushed as those exact bytes.
       #
-      # This ordering is the point. 1.0.3 was published blank because nothing
-      # ever started the image — CI built it with `push: false` and discarded
-      # it, and this workflow went straight to `push: true`. Verifying after
-      # the push would leave a broken tag in the registry for someone to pull;
-      # verifying before it means a broken image is never published at all.
+      # An earlier revision built twice — once to verify, once to publish —
+      # joined only by an assumption that the second would be a cache hit.
+      # Nothing enforced it: no cache was declared, `npm ci` reaches the
+      # network, and a miss would publish an artifact nothing had verified.
+      # The duplicated build-args block was the worse half, since changing one
+      # copy and not the other makes the guard vacuous with no signal at all —
+      # the exact failure shape this workflow now exists to prevent.
       #
-      # It does not inherit CI's run for the same reason lint and test do not:
-      # a tagged commit need not have reached main.
-      - name: Build the image locally for verification
+      # Verifying BEFORE the push, rather than after, means a broken image is
+      # never published rather than published and then diagnosed.
+      #
+      # ⚠️ TRADE-OFF, recorded here so it is decided rather than rediscovered:
+      # pushing with `docker push` loses the SLSA provenance attestation
+      # (`attest type=provenance,mode=max`) that build-push-action adds on its
+      # own push. Accepted, because the property it buys back is the one 1.0.3
+      # lacked — the published bytes are provably the bytes that passed the
+      # check. Restoring provenance without reopening that gap is a follow-up,
+      # not a reason to go back to two builds.
+      - name: Build the image and load it for verification
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           platforms: linux/amd64
           push: false
           load: true
-          tags: ricochet-ui:release-candidate
-          build-args: |
-            SCAC=${{ matrix.scac }}
-            ENVIRONMENT=${{ env.ENVIRONMENT }}
-            MARK_LIST=${{ matrix.marks }}
-            BUILD_ID=${{ github.sha }}
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ steps.builddate.outputs.date }}
-            VERSION=${{ steps.version.outputs.version }}
-
-      - name: The image must serve the application before it is published
-        run: ./scripts/verify-image.sh ricochet-ui:release-candidate
-
-      - name: Build and publish
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          build-args: |
-            SCAC=${{ matrix.scac }}
-            ENVIRONMENT=${{ env.ENVIRONMENT }}
-            MARK_LIST=${{ matrix.marks }}
-            BUILD_ID=${{ github.sha }}
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ steps.builddate.outputs.date }}
-            VERSION=${{ steps.version.outputs.version }}
           tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+          build-args: |
+            SCAC=${{ matrix.scac }}
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            MARK_LIST=${{ matrix.marks }}
+            BUILD_ID=${{ github.sha }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.builddate.outputs.date }}
+            VERSION=${{ steps.version.outputs.version }}
+
+      # Image ref arrives as env, not interpolated into the script, for the
+      # same reason the summary step below does it: VERSION derives from the
+      # git refname, which may legally contain `$`, backticks, `;` and `|`.
+      - name: The image must serve the application before it is published
+        env:
+          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+        run: ./scripts/verify-image.sh "$IMAGE_REF"
+
+      - name: Publish the verified image
+        env:
+          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+        run: docker push "$IMAGE_REF"
 
       # Values arrive as env, not as ${{ }} interpolated into the script.
       # VERSION derives from the tag name, and a git refname may legally contain
