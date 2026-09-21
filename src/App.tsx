@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Login from './components/login';
 import MainPage from './components/main';
 import ResultPage from './components/results';
@@ -8,7 +8,6 @@ import { AUTH_FLAG_NAME } from './utils/api';
 
 const App: React.FC = () => {
   const [authenticated, setAuthenticated] = useState<boolean>(false);
-  const [data, setData] = useState<any>(null);
   const { getCookies } = useCookies();
 
   // Check if the user is authenticated on app load. Read through the hook so the

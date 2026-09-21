@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { checkAuth, getMarks } from '../utils/api';
-import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
+import { getMarks } from '../utils/api';
+import { COOKIE_GUID_NAME } from '../utils/api';
 import useCookies from '../hooks/useCookies';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
