@@ -94,8 +94,56 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
+          # Loaded into the local daemon rather than discarded, so the step
+          # below can actually run it. Building an image and never starting it
+          # is what let 1.0.3 ship serving no JavaScript.
+          load: true
+          tags: ricochet-ui:ci
           build-args: |
             SCAC=${{ matrix.scac }}
             ENVIRONMENT=${{ env.ENVIRONMENT }}
             MARK_LIST=${{ matrix.marks }}
             BUILD_ID=${{ github.sha }}
+
+      # The regression this exists for: nginx.conf used `alias` where the
+      # bundle's location required `root`, so every asset request missed, fell
+      # through try_files to the SPA fallback, and returned index.html with a
+      # 200. The image built clean, nginx started clean, every status code was
+      # 200, and the page was blank.
+      #
+      # So assert the CONTENT TYPE, not the status. A status check cannot
+      # distinguish "here is your JavaScript" from "here is index.html again",
+      # which is precisely the failure mode.
+      - name: The image must serve JavaScript, not the SPA fallback
+        run: |
+          set -euo pipefail
+          docker run -d --name ricochet-ci -p 8080:80 ricochet-ui:ci
+
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:8080/ricochet-ui/; then break; fi
+            sleep 1
+          done
+
+          # Take the asset path from index.html rather than hardcoding it: the
+          # filename carries a content hash and changes every build.
+          asset=$(curl -s http://localhost:8080/ricochet-ui/ \
+            | sed -n 's/.*src="\([^"]*\.js\)".*/\1/p' | head -1)
+          if [ -z "$asset" ]; then
+            echo "::error::index.html references no JavaScript bundle at all"
+            docker rm -f ricochet-ci
+            exit 1
+          fi
+          echo "index.html asks for $asset"
+
+          type=$(curl -s -o /dev/null -w '%{content_type}' "http://localhost:8080${asset}")
+          echo "served as $type"
+
+          docker rm -f ricochet-ci
+
+          case "$type" in
+            *javascript*) echo "the bundle is served as JavaScript" ;;
+            *)
+              echo "::error::$asset is served as '$type', not JavaScript. nginx is resolving the bundle path incorrectly and returning the SPA fallback, so the application will render blank. Check root vs alias in nginx.conf against where the Dockerfile copies the build."
+              exit 1
+              ;;
+          esac
