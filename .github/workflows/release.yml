@@ -1,0 +1,124 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  # The image name lives here rather than in the environment: it is this repo's
+  # identity, so it is versioned and shows up in a diff.
+  #
+  # There is deliberately NO registry variable. Docker Hub is the default
+  # registry and must not be named as `index.docker.io` on login-action: the
+  # docker CLI normalises an empty address -- and the spelling `docker.io` -- to
+  # the credential key `https://index.docker.io/v1/`, but stores
+  # `index.docker.io` verbatim, while buildx looks the push target up under the
+  # normalised key. That one spelling logs in successfully and then finds no
+  # credential for the push, and Docker Hub reports the result in a way that
+  # reads like a token permissions problem. Leave it unnamed. Any other registry
+  # must be named. (Cost this project five release runs in collins-strolr-api.)
+  IMAGE_NAME: ricochet-ui
+
+  # AMTK is the only railroad with `ricochet-enabled = true` in the deployment
+  # Terraform, so it is the only one whose image anything pulls. The GitLab
+  # pipeline builds all six SCACs across three environments because Wabtec's
+  # registry serves them; publishing eighteen images here that nothing
+  # references would be noise. Adding a railroad is one entry in the matrix
+  # below, not a rewrite.
+  SCAC: amtk
+  MARK_LIST: AMTK,CDTX,IDTX,WDTX
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # Appropriate here and nowhere else in this repo: this job consumes a deploy
+    # secret, and a tag push requires write access so it cannot come from a fork.
+    # It does NOT follow that the tagged commit reached main -- verify that
+    # yourself before tagging, which is why the full build and test run again
+    # below rather than being inherited from ci.yml.
+    environment: Datasages Development
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test -- --watchAll=false
+        env:
+          CI: 'true'
+
+      # The tag is the source of truth for the version, and package.json must
+      # agree, so the image cannot be labelled differently from the bundle
+      # inside it. Without this the version is whatever the tagger typed.
+      #
+      # The `v` is stripped here and the bare result labels the image. Git tags
+      # carry the v by convention; image tags do not. The deployment Terraform
+      # lives in another repo and pins `ricochet-ui-version = "amtk-1.0.2"`, so
+      # the published tag must read `amtk-<version>` -- that shape is not
+      # checkable from this repo, which is why it is written down rather than
+      # left implied.
+      - name: Tag and package.json version must agree
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(node -p "require('./package.json').version")
+          echo "tag=$tag package.json=$pkg"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $pkg"
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # BUILD_ID carries the commit into the built bundle and the image labels.
+      # The images built by hand before this pipeline existed carry "unknown",
+      # which is why identifying what a deployed tag contained meant guessing.
+      - name: Build and publish
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            SCAC=${{ env.SCAC }}
+            ENVIRONMENT=prod
+            MARK_LIST=${{ env.MARK_LIST }}
+            BUILD_ID=${{ github.sha }}
+            GIT_COMMIT=${{ github.sha }}
+            VERSION=${{ steps.version.outputs.version }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.SCAC }}-${{ steps.version.outputs.version }}
+
+      # Values arrive as env, not as ${{ }} interpolated into the script.
+      # VERSION derives from the tag name, and a git refname may legally contain
+      # `$`, backticks, `;` and `|` -- interpolated, those are parsed by bash;
+      # passed as env they are inert data.
+      - name: Record what was published
+        env:
+          IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          TAG: ${{ env.SCAC }}-${{ steps.version.outputs.version }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          echo "### Published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`docker.io/$IMAGE:$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built from \`$COMMIT\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pin this exact tag in the Terraform. No \`latest\` is published." >> "$GITHUB_STEP_SUMMARY"
