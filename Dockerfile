@@ -91,6 +91,20 @@ RUN set -e; \
     cat .env.production
 
 # Build the React application
+# react-scripts 5 emits source maps unless told otherwise, and they ship in the
+# image: /ricochet-ui/static/js/main.<hash>.js.map returns the full unminified
+# source to anyone on the customer domain, and the bundle's trailing
+# sourceMappingURL comment makes devtools fetch it automatically.
+#
+# Not introduced by the root-vs-alias fix — 1.0.2 ran the stock root config and
+# served them too; only 1.0.3, which served nothing, did not. So this closes a
+# pre-existing exposure rather than one this change created.
+#
+# Placement is the control: the files are never built, so there is nothing for
+# an nginx rule to have to remember to hide. collins-strolr-ui sets the same
+# flag.
+ENV GENERATE_SOURCEMAP=false
+
 RUN npm run build
 
 # =============================================================================
