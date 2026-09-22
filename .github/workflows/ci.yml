@@ -94,8 +94,20 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
+          # Loaded into the local daemon rather than discarded, so the step
+          # below can actually run it. Building an image and never starting it
+          # is what let 1.0.3 ship serving no JavaScript.
+          load: true
+          tags: ricochet-ui:ci
           build-args: |
             SCAC=${{ matrix.scac }}
             ENVIRONMENT=${{ env.ENVIRONMENT }}
             MARK_LIST=${{ matrix.marks }}
             BUILD_ID=${{ github.sha }}
+
+      # Shared with release.yml rather than written twice. The published image
+      # is the one that matters, and a tag need not come from a commit that
+      # passed this workflow — so the check has to live somewhere both can
+      # call. The script carries the explanation of what it asserts and why.
+      - name: The image must serve the application
+        run: ./scripts/verify-image.sh ricochet-ui:ci
