@@ -95,3 +95,22 @@ case "$type" in
     exit 1
     ;;
 esac
+
+# Redirects must be relative. TLS terminates in front of this container, so
+# nginx sees plain HTTP on :80; an absolute Location would send the browser to
+# http://, downgrading it (or failing outright where only 443 is open). Both
+# redirects nginx issues are checked: the root, and the base path without its
+# trailing slash (nginx's automatic directory redirect).
+for path in "/" "/${BASE_PATH}"; do
+  location=$(curl -s -o /dev/null -D - "http://localhost:${PORT}${path}" \
+    | tr -d '\r' | sed -n 's/^[Ll]ocation: //p')
+  case "$location" in
+    /*)
+      echo "${path} redirects to ${location} (relative)"
+      ;;
+    *)
+      echo "::error::${path} redirects to '${location}', not a relative path. Behind the TLS edge that sends the browser to plain http://. Set 'absolute_redirect off;' in nginx.conf."
+      exit 1
+      ;;
+  esac
+done
