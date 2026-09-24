@@ -1,6 +1,6 @@
 {
   "name": "ricochet-ui",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "homepage": "https://SCAC_URI-apps.railwaynet.net/ricochet-ui",
   "private": true,
   "dependencies": {

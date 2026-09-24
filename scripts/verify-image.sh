@@ -18,6 +18,10 @@
 #      This catches a bundle that is missing, mis-hashed, or shadowed by an
 #      over-eager SPA fallback.
 #
+# A third assertion guards a different defect: every redirect nginx issues must
+# be a relative path, because TLS terminates in front of the container and an
+# absolute redirect sends the browser to plain http://.
+#
 # Both workflows call this. ci.yml runs it on a pull request; release.yml runs
 # it against the image it is about to publish. 1.0.3 was NOT published because
 # a tag skipped CI — it came from the PR #21 merge commit, which ci.yml ran on
@@ -95,3 +99,34 @@ case "$type" in
     exit 1
     ;;
 esac
+
+# Redirects must be relative. TLS terminates in front of this container, so
+# nginx sees plain HTTP on :80; an absolute Location would send the browser to
+# http://, downgrading it (or failing outright where only 443 is open). The two
+# kinds of redirect nginx issues are checked separately, since a directive
+# placed in one location block would fix one and not the other:
+#   /                       the explicit `return 301` in `location /`
+#   /${BASE_PATH}/static    try_files `$uri/` meeting a real directory, which
+#                           nginx answers with its automatic slash redirect
+#                           (react-scripts always emits static/)
+for path in "/" "/${BASE_PATH}/static"; do
+  location=$(curl -s -o /dev/null -D - "http://localhost:${PORT}${path}" \
+    | tr -d '\r' | sed -n 's/^[Ll]ocation: //p')
+  case "$location" in
+    "")
+      echo "::error::${path} did not redirect at all; expected a 301 to a relative path. The nginx location blocks no longer produce the redirect this check exists to test."
+      exit 1
+      ;;
+    //*)
+      echo "::error::${path} redirects to '${location}', a scheme-relative URL that leaves this host."
+      exit 1
+      ;;
+    /*)
+      echo "${path} redirects to ${location} (relative)"
+      ;;
+    *)
+      echo "::error::${path} redirects to '${location}', not a relative path. Behind the TLS edge that sends the browser to plain http://. Set 'absolute_redirect off;' in nginx.conf."
+      exit 1
+      ;;
+  esac
+done
