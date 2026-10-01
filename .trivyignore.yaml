@@ -1,0 +1,7 @@
+# Image-scan findings the supply-chain audit tolerates. Empty, and meant to
+# stay that way: the Dockerfile's `apk upgrade` takes Alpine's fixes as they
+# publish, so a HIGH/CRITICAL with a fix should never need an entry.
+#
+# Add one only for a finding with NO fix available, with an `expired_at` and a
+# statement naming what would clear it. Never for one a base bump would fix.
+vulnerabilities: []
