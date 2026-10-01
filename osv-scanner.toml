@@ -1,0 +1,45 @@
+# Known advisories the supply-chain audit tolerates, each with a reason and an
+# expiry. Everything else a scan reports fails the build.
+#
+# Every entry is webpack-dev-server 4, fixed only in 5. react-scripts 5.0.1 is
+# the final Create React App release and passes webpack-dev-server options that
+# 5 removed (onBeforeSetupMiddleware, onAfterSetupMiddleware), so `npm start`
+# fails schema validation under 5. The dev server serves `npm start` only; it is
+# not in the production bundle or the image. Migrating off react-scripts (e.g.
+# to Vite) clears every entry. The expiry is a deadline, not a hope: on that
+# date the audit turns red until the migration lands or each entry is re-argued
+# here.
+#
+# Regenerate after a dependency change by scanning and keeping only what is
+# still reported. Never add an entry to silence a finding a version bump or an
+# `overrides` entry in package.json would fix.
+
+[[IgnoredVulns]]
+id = "GHSA-4v9v-hfq4-rm2v"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-79cf-xcqc-c78w"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-9jgg-88mc-972h"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-f5vj-f2hx-8m93"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-m28w-2pqf-7qgj"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-mx8g-39q3-5c79"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."

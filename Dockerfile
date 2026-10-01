@@ -112,6 +112,14 @@ RUN npm run build
 # =============================================================================
 FROM nginx:${NGINX_VERSION} AS production
 
+# Alpine publishes security fixes between nginx image releases, and the image
+# scan in supply-chain-audit.yml fails on any HIGH/CRITICAL with a fix
+# available. Without this, a fixed CVE in the base (libexpat, OpenSSL) blocks
+# every build until upstream re-cuts the tag. The nginx binary itself comes
+# from nginx.org's repo, which the official image removes after install, so
+# this moves only Alpine's own packages within the same release branch.
+RUN apk upgrade --no-cache
+
 # Runtime labels for identification
 ARG SCAC=amtk
 ARG ENVIRONMENT=prod
