@@ -1,12 +1,16 @@
 # Known advisories the supply-chain audit tolerates, each with a reason and an
 # expiry. Everything else a scan reports fails the build.
 #
-# Every entry is webpack-dev-server 4, fixed only in 5. react-scripts 5.0.1 is
-# the final Create React App release and passes webpack-dev-server options that
-# 5 removed (onBeforeSetupMiddleware, onAfterSetupMiddleware), so `npm start`
-# fails schema validation under 5. The dev server serves `npm start` only; it is
-# not in the production bundle or the image. Migrating off react-scripts (e.g.
-# to Vite) clears every entry. The expiry is a deadline, not a hope: on that
+# Every entry is react-scripts 5.0.1 build or dev-server tooling, none of it in
+# the production bundle or the image. Two groups, named in each reason:
+#
+#  - webpack-dev-server 4, fixed only in 5. react-scripts 5.0.1 is the final
+#    Create React App release and passes webpack-dev-server options that 5
+#    removed (onBeforeSetupMiddleware, onAfterSetupMiddleware), so `npm start`
+#    fails schema validation under 5.
+#  - NO FIX: no fixed release exists.
+#
+# Migrating off react-scripts (e.g. to Vite) clears every entry. The expiry is a deadline, not a hope: on that
 # date the audit turns red until the migration lands or each entry is re-argued
 # here.
 #
@@ -23,6 +27,11 @@ reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which r
 id = "GHSA-79cf-xcqc-c78w"
 ignoreUntil = 2026-12-31T00:00:00Z
 reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "node-forge 1.4.0. NO FIX. Every release through 1.4.0, the latest, is affected. Dev server only, via webpack-dev-server 4's selfsigned, which generates the dev certificate when HTTPS is on and no certificate is supplied. The only signature it verifies is its own, over that certificate, made moments earlier with a fresh 2048-bit e=65537 key, so no attacker-supplied signature or key ever reaches the affected PKCS#1 v1.5 verify."
 
 [[IgnoredVulns]]
 id = "GHSA-9jgg-88mc-972h"
@@ -43,3 +52,8 @@ reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which r
 id = "GHSA-mx8g-39q3-5c79"
 ignoreUntil = 2026-12-31T00:00:00Z
 reason = "webpack-dev-server 4.15.2, dev server only. Fixed only in 5.x, which react-scripts 5.0.1 cannot start on; cleared by migrating off react-scripts."
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-12-31T00:00:00Z
+reason = "braces 3.0.3. NO FIX. Every release through 3.0.3, the latest, is affected. Build and dev-server file matching under react-scripts (eslint-webpack-plugin's micromatch, tailwindcss's chokidar); the patterns are the project's own, not user input."
