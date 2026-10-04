@@ -1,6 +1,13 @@
 # =============================================================================
 # GitLab CI/CD Pipeline for wabtec-ricochet-ui
-# Builds all customer/environment combinations using matrix strategy
+#
+# One image serves every railroad and environment (vault decision
+# 2026-10-04-ricochet-ui-zero-config-image.md), so there is one build, published
+# on a version tag with the same bare tag Docker Hub carries, and no `latest`.
+#
+# The image is built here only on a `v*` tag. Merge requests and main run the
+# lint, tests and React build; the Dockerfile and scripts/verify-image.sh are
+# exercised before a tag by GitHub's ci.yml.
 # =============================================================================
 
 image: node:20-alpine
@@ -56,7 +63,6 @@ build-verification:
   stage: build
   script:
     - npm ci
-    - cp .env.template .env
     - npm run build
   artifacts:
     paths:
@@ -69,10 +75,10 @@ build-verification:
     - if: $CI_COMMIT_TAG
 
 # =============================================================================
-# Docker Build Stage - Matrix Jobs for All Combinations
+# Docker Build Stage
 # =============================================================================
 
-.docker-build-template:
+docker-build:
   stage: docker-build
   image: docker:27
   services:
@@ -82,171 +88,21 @@ build-verification:
     - mkdir -p ~/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD} | base64)\"}}}" > ~/.docker/config.json
   script:
-    # Determine marks from customer
-    - |
-      case "${SCAC}" in
-        amtk) MARK_LIST="AMTK,CDTX,IDTX,WDTX" ;;
-        csao) MARK_LIST="csao" ;;
-        njtr) MARK_LIST="njtr" ;;
-        nysw) MARK_LIST="nysw" ;;
-        sepa) MARK_LIST="sepa" ;;
-        vrex) MARK_LIST="vrex" ;;
-        *) MARK_LIST="${SCAC}" ;;
-      esac
-
-    # Set version tag
-    - VERSION=${CI_COMMIT_TAG:-${CI_COMMIT_SHORT_SHA}}
+    # The git tag carries the `v`; the image tag does not, matching Docker Hub,
+    # so one release has one name in both registries.
+    - VERSION="${CI_COMMIT_TAG#v}"
     - BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    # Build image
-    - echo "Building ${SCAC}-${ENVIRONMENT} with marks ${MARK_LIST}"
     - |
       docker build \
-        --build-arg SCAC=${SCAC} \
-        --build-arg ENVIRONMENT=${ENVIRONMENT} \
-        --build-arg MARK_LIST="${MARK_LIST}" \
         --build-arg BUILD_DATE="${BUILD_DATE}" \
         --build-arg GIT_COMMIT="${CI_COMMIT_SHA}" \
         --build-arg VERSION="${VERSION}" \
         --build-arg BUILD_ID="${CI_COMMIT_SHORT_SHA}" \
-        -t ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION} \
+        -t ${CI_REGISTRY_IMAGE}:${VERSION} \
         .
-
-    # Push image
-    - docker push ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION}
-
-    # Tag and push as latest only on main/master branch or tags
-    - |
-      if [ -n "$CI_COMMIT_TAG" ] || [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
-        docker tag ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-${VERSION} ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-latest
-        docker push ${CI_REGISTRY_IMAGE}:${SCAC}-${ENVIRONMENT}-latest
-      fi
+    - docker push ${CI_REGISTRY_IMAGE}:${VERSION}
   rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_BRANCH == "master"
-    - if: $CI_COMMIT_BRANCH
-      when: manual
-
-# -----------------------------------------------------------------------------
-# Production Environment Builds
-# -----------------------------------------------------------------------------
-
-docker-build-amtk-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: amtk
-    ENVIRONMENT: prod
-
-docker-build-csao-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: csao
-    ENVIRONMENT: prod
-
-docker-build-njtr-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: njtr
-    ENVIRONMENT: prod
-
-docker-build-nysw-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: nysw
-    ENVIRONMENT: prod
-
-docker-build-sepa-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: sepa
-    ENVIRONMENT: prod
-
-docker-build-vrex-prod:
-  extends: .docker-build-template
-  variables:
-    SCAC: vrex
-    ENVIRONMENT: prod
-
-# -----------------------------------------------------------------------------
-# Dev/Interop Environment Builds
-# -----------------------------------------------------------------------------
-
-docker-build-amtk-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: amtk
-    ENVIRONMENT: dev
-
-docker-build-csao-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: csao
-    ENVIRONMENT: dev
-
-docker-build-njtr-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: njtr
-    ENVIRONMENT: dev
-
-docker-build-nysw-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: nysw
-    ENVIRONMENT: dev
-
-docker-build-sepa-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: sepa
-    ENVIRONMENT: dev
-
-docker-build-vrex-dev:
-  extends: .docker-build-template
-  variables:
-    SCAC: vrex
-    ENVIRONMENT: dev
-
-# -----------------------------------------------------------------------------
-# DR Environment Builds
-# -----------------------------------------------------------------------------
-
-docker-build-amtk-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: amtk
-    ENVIRONMENT: dr
-
-docker-build-csao-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: csao
-    ENVIRONMENT: dr
-
-docker-build-njtr-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: njtr
-    ENVIRONMENT: dr
-
-docker-build-nysw-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: nysw
-    ENVIRONMENT: dr
-
-docker-build-sepa-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: sepa
-    ENVIRONMENT: dr
-
-docker-build-vrex-dr:
-  extends: .docker-build-template
-  variables:
-    SCAC: vrex
-    ENVIRONMENT: dr
+    - if: $CI_COMMIT_TAG =~ /^v/
 
 # =============================================================================
 # Release Stage
@@ -257,16 +113,12 @@ create-release:
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
-    - echo "Images available:"
-    - |
-      for scac in amtk csao njtr nysw sepa vrex; do
-        for env in prod dev dr; do
-          echo "  - ${CI_REGISTRY_IMAGE}:${scac}-${env}-${CI_COMMIT_TAG}"
-        done
-      done
+    - echo "Image ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG#v} serves every railroad and environment"
   release:
     tag_name: $CI_COMMIT_TAG
     name: "Release $CI_COMMIT_TAG"
     description: "Release $CI_COMMIT_TAG of Ricochet UI"
+  # The same rule as docker-build, so a release never names an image that was
+  # not built.
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_TAG =~ /^v/

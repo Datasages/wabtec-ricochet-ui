@@ -105,22 +105,13 @@ describe('useCookies', () => {
     // The legacy flag's default-path is the base path. Relying on the path-less
     // write alone would miss it from a nested route such as /data-selection/,
     // which is where the 401 handler signs out.
-    const previous = process.env.REACT_APP_BASE_PATH;
-    process.env.REACT_APP_BASE_PATH = '/ricochet-ui';
+    const { removeAuthentication } = useCookies();
 
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const scopedUseCookies = require('./useCookies').default;
-      const { removeAuthentication } = scopedUseCookies();
-
-      removeAuthentication();
-    });
+    removeAuthentication();
 
     expect(
       writes.some((w) => w.startsWith(`${AUTH_FLAG_NAME}=`) && w.includes('path=/ricochet-ui')),
     ).toBe(true);
-
-    process.env.REACT_APP_BASE_PATH = previous;
   });
 
   test('getCookies reads a named cookie and returns null when absent', () => {
