@@ -22,6 +22,9 @@
 # be a relative path, because TLS terminates in front of the container and an
 # absolute redirect sends the browser to plain http://.
 #
+# A fourth guards the zero-config image: nothing served may name a railroad host
+# or a build-time template token.
+#
 # Both workflows call this. ci.yml runs it on a pull request; release.yml runs
 # it against the image it is about to publish. 1.0.3 was NOT published because
 # a tag skipped CI — it came from the PR #21 merge commit, which ci.yml ran on
@@ -37,6 +40,7 @@ IMAGE="${1:?usage: verify-image.sh <image-ref> [base-path] [host-port]}"
 BASE_PATH="${2:-ricochet-ui}"
 PORT="${3:-8080}"
 CONTAINER="verify-${BASE_PATH}-$$"
+SERVED=$(mktemp -d)
 
 # Registered BEFORE `docker run`, which is the whole point. `docker run` can
 # create the container and then fail to start it — an already-allocated host
@@ -50,6 +54,7 @@ CONTAINER="verify-${BASE_PATH}-$$"
 cleanup() {
   docker logs "$CONTAINER" 2>&1 | tail -30 || true
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  rm -rf "$SERVED"
 }
 trap cleanup EXIT
 
@@ -100,18 +105,31 @@ case "$type" in
     ;;
 esac
 
-# The image serves every railroad and environment, so the bundle must name none
-# of them. A railwaynet.net host means a URL was built absolute again and would
+# The image serves every railroad and environment, so nothing it serves may
+# name one. A railwaynet.net host means a URL was built absolute again and would
 # send every railroad's devices to one host. A surviving template token means
-# build-time substitution crept back in. The served bundle is checked, not the
-# source, because it is what ships.
-leaks=$(curl -s "http://localhost:${PORT}${asset}" \
-  | grep -oE 'railwaynet\.net|SCAC_URI-|SCAC_VAR|MARK_LIST|ENVIRONMENT\.' | sort -u || true)
-if [ -n "$leaks" ]; then
-  echo "::error::${asset} contains railroad- or environment-specific text: $(echo "$leaks" | tr '\n' ' '). ricochet-ui must use same-origin paths and take its marks from strolr-api (vault decision 2026-10-04-ricochet-ui-zero-config-image.md)."
+# build-time substitution crept back in. Every file nginx serves is checked
+# (index.html, every JS chunk, the manifests), copied out of the running
+# container, because that is what ships.
+docker cp "${CONTAINER}:/usr/share/nginx/html/${BASE_PATH}" "${SERVED}"
+if [ -z "$(find "${SERVED}" -type f -name '*.js')" ]; then
+  echo "::error::copied nothing to check out of /usr/share/nginx/html/${BASE_PATH}. The leak check would pass vacuously, so it fails instead."
   exit 1
 fi
-echo "the bundle names no railroad host or template token"
+# grep exits 1 when nothing matches, which is the passing case; 2 is an error.
+set +e
+leaks=$(grep -rhoE 'railwaynet\.net|SCAC_URI-|SCAC_VAR|MARK_LIST|ENVIRONMENT\.' "${SERVED}")
+status=$?
+set -e
+if [ "$status" -gt 1 ]; then
+  echo "::error::could not scan the served files (grep exit ${status})."
+  exit 1
+fi
+if [ -n "$leaks" ]; then
+  echo "::error::the served files contain railroad- or environment-specific text: $(echo "$leaks" | sort -u | tr '\n' ' '). ricochet-ui must use same-origin paths and take its marks from strolr-api (vault decision 2026-10-04-ricochet-ui-zero-config-image.md)."
+  exit 1
+fi
+echo "nothing served names a railroad host or template token"
 
 # Redirects must be relative. TLS terminates in front of this container, so
 # nginx sees plain HTTP on :80; an absolute Location would send the browser to

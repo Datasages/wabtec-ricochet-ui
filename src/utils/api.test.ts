@@ -1,4 +1,4 @@
-import { API, BASE_PATH, MarksError, checkAuth, getMarks, getRegistrationStatus, registerUser } from './api';
+import { API, BASE_PATH, MarksError, checkAuth, getMarks, getRegistrationStatus, registerUser, runCheck } from './api';
 
 // The app and strolr-api share one host behind each railroad's ALB, so every
 // URL is a fixed same-origin path. These are the literal paths strolr-api
@@ -20,7 +20,9 @@ describe('API paths', () => {
 });
 
 describe('calls', () => {
+  const realFetch = global.fetch;
   let fetchMock: jest.Mock;
+  let jsonMock: jest.Mock;
 
   beforeEach(() => {
     fetchMock = jest.fn();
@@ -28,15 +30,17 @@ describe('calls', () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    global.fetch = realFetch;
   });
 
-  const respond = (status: number, body: unknown) =>
+  const respond = (status: number, body: unknown) => {
+    jsonMock = jest.fn().mockResolvedValue(body);
     fetchMock.mockResolvedValue({
       ok: status >= 200 && status < 300,
       status,
-      json: async () => body,
+      json: jsonMock,
     });
+  };
 
   const sentTo = () => fetchMock.mock.calls[0][0];
   const sentBody = () => JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -61,6 +65,21 @@ describe('calls', () => {
 
     await expect(checkAuth('t', 'g')).resolves.toBe(401);
     expect(sentTo()).toBe('/strolr-api/ricochet/mobile/authstatus');
+    expect(sentBody()).toEqual({ token: 't', guid: 'g' });
+  });
+
+  test('checkAuth reports a network failure as 500', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(checkAuth('t', 'g')).resolves.toBe(500);
+  });
+
+  test('runCheck posts the credential, mark and loco to run and returns the results', async () => {
+    respond(200, { att: 'PASS', vzw: 'FAIL' });
+
+    await expect(runCheck('tok', 'guid-1', 'AMTK', '1234')).resolves.toEqual({ att: 'PASS', vzw: 'FAIL' });
+    expect(sentTo()).toBe('/strolr-api/ricochet/mobile/run');
+    expect(sentBody()).toEqual({ token: 'tok', guid: 'guid-1', mark: 'AMTK', loco: '1234' });
   });
 
   describe('getMarks', () => {
@@ -75,18 +94,25 @@ describe('calls', () => {
 
     // strolr-api answers 401 when verify() fails: an unknown, revoked or
     // unapproved device. The caller signs the device out on this status.
-    test('rejects with the status when the device is refused', async () => {
-      respond(401, null);
+    //
+    // The error bodies here are valid mark lists and the body is asserted
+    // unread, so only the status check can produce the rejection. A real 401
+    // may be empty and an ALB 5xx is HTML; reading either would throw a parse
+    // error instead of a MarksError, and the device would not be signed out.
+    test('rejects with the status when the device is refused, without reading the body', async () => {
+      respond(401, ['AMTK']);
 
       const error = await getMarks('bad', 'guid-1').catch((e) => e);
       expect(error).toBeInstanceOf(MarksError);
       expect(error.status).toBe(401);
+      expect(jsonMock).not.toHaveBeenCalled();
     });
 
-    test('rejects on a server error', async () => {
-      respond(500, null);
+    test('rejects on a server error, without reading the body', async () => {
+      respond(500, ['AMTK']);
 
       await expect(getMarks('tok', 'guid-1')).rejects.toMatchObject({ status: 500 });
+      expect(jsonMock).not.toHaveBeenCalled();
     });
 
     // The response crosses a boundary: anything but an array of strings is

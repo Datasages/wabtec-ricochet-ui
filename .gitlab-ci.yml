@@ -4,6 +4,10 @@
 # One image serves every railroad and environment (vault decision
 # 2026-10-04-ricochet-ui-zero-config-image.md), so there is one build, published
 # on a version tag with the same bare tag Docker Hub carries, and no `latest`.
+#
+# The image is built here only on a `v*` tag. Merge requests and main run the
+# lint, tests and React build; the Dockerfile and scripts/verify-image.sh are
+# exercised before a tag by GitHub's ci.yml.
 # =============================================================================
 
 image: node:20-alpine
@@ -114,5 +118,7 @@ create-release:
     tag_name: $CI_COMMIT_TAG
     name: "Release $CI_COMMIT_TAG"
     description: "Release $CI_COMMIT_TAG of Ricochet UI"
+  # The same rule as docker-build, so a release never names an image that was
+  # not built.
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_TAG =~ /^v/

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useCookies from '../hooks/useCookies';
-import { API, COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
+import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME, checkAuth, runCheck } from '../utils/api';
 import { useNavigate } from 'react-router';
 
 
@@ -24,36 +24,25 @@ const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const locoId = queryParams.get('locoId');
 
   const getAuthentication = async () => {
+    const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
     const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-    try {
-      const authResponse = await fetch(API.authStatus, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guid: savedGuid }),
-      });
+    const status = await checkAuth(savedToken, savedGuid);
 
-      if (authResponse.status === 401) {
-        // Explicit handling for unauthorized response
-        console.warn('Device deregistered or unauthorized');
-        removeAuthentication();
-        setAuthenticated(false);
-        return false;
-      }
-
-      if (!authResponse.ok) {
-        // Handle other errors (e.g., 500)
-        console.error(`Unexpected error: ${authResponse.status}`);
-        return false;
-      }
-
-      return true;
-
-    } catch (error) {
-      // Network or other low-level error
-      console.error('Failed to check authentication:', error);
+    if (status === 401) {
+      console.warn('Device deregistered or unauthorized');
+      removeAuthentication();
+      setAuthenticated(false);
       return false;
     }
+
+    // checkAuth reports a network failure as 500.
+    if (status < 200 || status >= 300) {
+      console.error(`Unexpected error: ${status}`);
+      return false;
+    }
+
+    return true;
   };
 
 
@@ -62,21 +51,8 @@ const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
       const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
       const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-      const response = await fetch(API.run, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(
-          {
-            token: savedToken,
-            guid: savedGuid,
-            mark,
-            "loco": locoId,
-          }),
-      });
-
-      const result = await response.json();
+      // Only called once both are present (see the effect below).
+      const result = await runCheck(savedToken, savedGuid, mark as string, locoId as string);
       setData(result);
     } catch (error) {
       setError('Failed to fetch data');

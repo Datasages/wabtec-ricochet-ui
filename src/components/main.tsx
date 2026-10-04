@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API, COOKIE_GUID_NAME, COOKIE_TOKEN_NAME, MarksError, getMarks } from '../utils/api';
+import { COOKIE_GUID_NAME, COOKIE_TOKEN_NAME, MarksError, checkAuth, getMarks } from '../utils/api';
 import useCookies from '../hooks/useCookies';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -20,40 +20,30 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const [items, setItems] = useState<string[]>([]);
   const [mark, setMark] = useState<string>('');
   const [locoId, setLocoId] = useState<string>("");
+  const [marksError, setMarksError] = useState<string>('');
 
   const navigate = useNavigate();
 
   const getAuthentication = async () => {
+    const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
     const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-    try {
-      const authResponse = await fetch(API.authStatus, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guid: savedGuid }),
-      });
+    const status = await checkAuth(savedToken, savedGuid);
 
-      if (authResponse.status === 401) {
-        // Explicit handling for unauthorized response
-        console.warn('Device deregistered or unauthorized');
-        removeAuthentication();
-        setAuthenticated(false);
-        return false;
-      }
-
-      if (!authResponse.ok) {
-        // Handle other errors (e.g., 500)
-        console.error(`Unexpected error: ${authResponse.status}`);
-        return false;
-      }
-
-      return true;
-
-    } catch (error) {
-      // Network or other low-level error
-      console.error('Failed to check authentication:', error);
+    if (status === 401) {
+      console.warn('Device deregistered or unauthorized');
+      removeAuthentication();
+      setAuthenticated(false);
       return false;
     }
+
+    // checkAuth reports a network failure as 500.
+    if (status < 200 || status >= 300) {
+      console.error(`Unexpected error: ${status}`);
+      return false;
+    }
+
+    return true;
   };
 
 
@@ -78,7 +68,11 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
         navigate('/login');
         return;
       }
+      // Anything else, a 404 included, is most likely a railroad whose
+      // strolr-api predates the marks route (below 2.12.0). Say so on the page:
+      // with no marks the check cannot run.
       console.error('Failed to load marks:', error);
+      setMarksError('Could not load the railroad marks');
     }
   };
 
@@ -154,8 +148,10 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
             '-moz-appearance': 'textfield',
           }}
         />
+        {marksError && <p className="error-message">{marksError}</p>}
         <div style={{ padding: 10 }}>
           <Button className="big-button"
+            disabled={items.length === 0}
             sx={{
               width: 150,
               height: 150,

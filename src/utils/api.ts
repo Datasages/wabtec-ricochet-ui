@@ -71,6 +71,12 @@ export const getRegistrationStatus = async (token: string, guid: string) => {
   }
 };
 
+// The link test: one echo per transport, each reported PASS or FAIL.
+export const runCheck = async (token: string, guid: string, mark: string, loco: string) => {
+  const response = await postJson(API.run, { token, guid, mark, loco });
+  return response.json();
+};
+
 export const checkAuth = async (token: string, guid: string) => {
   try {
     const response = await postJson(API.authStatus, { token, guid });
