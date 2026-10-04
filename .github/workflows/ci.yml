@@ -16,25 +16,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  ENVIRONMENT: prod
-
 jobs:
+  # One image, no build arguments for railroad or environment: the same build
+  # release.yml publishes and supply-chain-audit.yml scans.
   build-and-test:
     runs-on: ubuntu-latest
-
-    # The SAME matrix as release.yml, deliberately, and this is an invariant
-    # rather than a convention: release.yml promises that adding a railroad is
-    # one more entry, and if that entry is not also here, CI validates a build
-    # configuration the release then publishes unvalidated. Keeping the two
-    # literally identical is what makes the promise safe. `marks` travels with
-    # `scac` because it is a function of it, and the mark list is a live
-    # business value -- AMTK's gained CDTX/IDTX/WDTX at some point.
-    strategy:
-      matrix:
-        include:
-          - scac: amtk
-            marks: AMTK,CDTX,IDTX,WDTX
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -60,8 +46,8 @@ jobs:
 
       # CI=true makes react-scripts run once and exit rather than watching.
       # --passWithNoTests is NOT set: this repo has real tests
-      # (useCookies.test.ts, registrationPoll.test.ts) and they cover the cookie
-      # handling the F8/F9 work touched, so a suite that silently vanished
+      # (api.test.ts, useCookies.test.ts, registrationPoll.test.ts), so a suite
+      # that silently vanished
       # should fail the build rather than pass it.
       - name: Test
         run: npm test -- --watchAll=false
@@ -72,13 +58,6 @@ jobs:
       # duplicate: it is the one that fails with a readable error. A type error
       # inside `docker build` surfaces as a layer failure several hundred lines
       # into buildx output.
-      #
-      # .env is required by the React build and is generated from .env.template
-      # at image build time. Here the template stands in unsubstituted, which is
-      # enough to typecheck and bundle.
-      - name: Copy the env template for the build
-        run: cp .env.template .env
-
       - name: Build
         run: npm run build
 
@@ -100,9 +79,6 @@ jobs:
           load: true
           tags: ricochet-ui:ci
           build-args: |
-            SCAC=${{ matrix.scac }}
-            ENVIRONMENT=${{ env.ENVIRONMENT }}
-            MARK_LIST=${{ matrix.marks }}
             BUILD_ID=${{ github.sha }}
 
       # Shared with release.yml rather than written twice. The published image

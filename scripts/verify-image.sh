@@ -100,6 +100,19 @@ case "$type" in
     ;;
 esac
 
+# The image serves every railroad and environment, so the bundle must name none
+# of them. A railwaynet.net host means a URL was built absolute again and would
+# send every railroad's devices to one host. A surviving template token means
+# build-time substitution crept back in. The served bundle is checked, not the
+# source, because it is what ships.
+leaks=$(curl -s "http://localhost:${PORT}${asset}" \
+  | grep -oE 'railwaynet\.net|SCAC_URI-|SCAC_VAR|MARK_LIST|ENVIRONMENT\.' | sort -u || true)
+if [ -n "$leaks" ]; then
+  echo "::error::${asset} contains railroad- or environment-specific text: $(echo "$leaks" | tr '\n' ' '). ricochet-ui must use same-origin paths and take its marks from strolr-api (vault decision 2026-10-04-ricochet-ui-zero-config-image.md)."
+  exit 1
+fi
+echo "the bundle names no railroad host or template token"
+
 # Redirects must be relative. TLS terminates in front of this container, so
 # nginx sees plain HTTP on :80; an absolute Location would send the browser to
 # http://, downgrading it (or failing outright where only 443 is open). The two

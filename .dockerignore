@@ -37,7 +37,7 @@ docs/
 # Old Dockerfiles (will be removed after migration)
 Dockerfile.*
 
-# Environment files (using template)
+# Environment files. The image takes no configuration, so none belong in it.
 .env
 .env.local
 .env.development
@@ -45,7 +45,6 @@ Dockerfile.*
 .env.production
 .env.production.local
 .env.production.*
-!.env.template
 
 # Test artifacts
 coverage

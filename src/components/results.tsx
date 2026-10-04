@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useCookies from '../hooks/useCookies';
-import { COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
+import { API, COOKIE_TOKEN_NAME, COOKIE_GUID_NAME } from '../utils/api';
 import { useNavigate } from 'react-router';
 
 
@@ -24,11 +24,10 @@ const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const locoId = queryParams.get('locoId');
 
   const getAuthentication = async () => {
-    const URL = process.env.REACT_APP_GET_AUTHSTATUS_URL || "";
     const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
     try {
-      const authResponse = await fetch(URL, {
+      const authResponse = await fetch(API.authStatus, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guid: savedGuid }),
@@ -60,12 +59,10 @@ const ResultPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
 
   const fetchData = async () => {
     try {
-      const URL = process.env.REACT_APP_GET_DATA_URL || "";
-
       const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
       const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-      const response = await fetch(URL, {
+      const response = await fetch(API.run, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -22,35 +22,13 @@ env:
   # must be named. (Cost this project five release runs in collins-strolr-api.)
   IMAGE_NAME: ricochet-ui
 
-  # Docker Hub carries PROD images only. The Dockerfile treats ENVIRONMENT as a
-  # real build dimension -- it selects the FQDN subdomain and the SSO realm --
-  # but the published tag below encodes only SCAC and version, so a dev or dr
-  # build pushed from here would overwrite the prod image at an identical tag,
-  # differing only in baked-in URLs and with nothing to signal it. If non-prod
-  # images ever need publishing here, the tag needs an environment segment
-  # FIRST. GitLab does carry the dimension (`${SCAC}-${ENVIRONMENT}-${VERSION}`)
-  # because its registry serves all three.
-  ENVIRONMENT: prod
-
 jobs:
+  # One image per version serves every railroad in dev, prod and dr: it has no
+  # configuration to differ by (vault decision
+  # 2026-10-04-ricochet-ui-zero-config-image.md). Tags before 2.0.0 were
+  # `amtk-<version>` builds with the railroad baked in.
   publish:
     runs-on: ubuntu-latest
-
-    # AMTK is the only railroad with `ricochet-enabled = true` in the deployment
-    # Terraform, so it is the only one whose image anything pulls. That Terraform
-    # lives in another repository and is NOT checkable from here -- it is written
-    # down because a reader cannot confirm it, and it is the load-bearing reason
-    # this publishes one image where .gitlab-ci.yml publishes eighteen (6 SCACs
-    # x 3 environments, into Wabtec's registry).
-    #
-    # A matrix with one entry, rather than two workflow-level variables, so that
-    # adding a railroad really is one more entry. `marks` has to travel with
-    # `scac` because it is a function of it.
-    strategy:
-      matrix:
-        include:
-          - scac: amtk
-            marks: AMTK,CDTX,IDTX,WDTX
 
     # Appropriate here and nowhere else in this repo: this job consumes a deploy
     # secret, and a tag push requires write access so it cannot come from a fork.
@@ -108,10 +86,8 @@ jobs:
       # agree, so the image cannot be labelled differently from the bundle
       # inside it. Without this the version is whatever the tagger typed.
       #
-      # The `v` is stripped here and the bare result labels the image. Git tags
-      # carry the v by convention; image tags do not. The deployment Terraform
-      # pins `ricochet-ui-version = "amtk-1.0.2"`, so the published tag must read
-      # `amtk-<version>` -- another cross-repo fact not checkable from here.
+      # The `v` is stripped here and the bare result is the image tag. Git tags
+      # carry the v by convention; image tags do not.
       - name: Tag and package.json version must agree
         id: version
         run: |
@@ -165,11 +141,8 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
           build-args: |
-            SCAC=${{ matrix.scac }}
-            ENVIRONMENT=${{ env.ENVIRONMENT }}
-            MARK_LIST=${{ matrix.marks }}
             BUILD_ID=${{ github.sha }}
             GIT_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.builddate.outputs.date }}
@@ -180,12 +153,12 @@ jobs:
       # git refname, which may legally contain `$`, backticks, `;` and `|`.
       - name: The image must serve the application before it is published
         env:
-          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
         run: ./scripts/verify-image.sh "$IMAGE_REF"
 
       - name: Publish the verified image
         env:
-          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.scac }}-${{ steps.version.outputs.version }}
+          IMAGE_REF: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
         run: docker push "$IMAGE_REF"
 
       # Values arrive as env, not as ${{ }} interpolated into the script.
@@ -195,7 +168,7 @@ jobs:
       - name: Record what was published
         env:
           IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          TAG: ${{ matrix.scac }}-${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.version }}
           COMMIT: ${{ github.sha }}
         run: |
           echo "### Published" >> "$GITHUB_STEP_SUMMARY"

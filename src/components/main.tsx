@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getMarks } from '../utils/api';
-import { COOKIE_GUID_NAME } from '../utils/api';
+import { API, COOKIE_GUID_NAME, COOKIE_TOKEN_NAME, MarksError, getMarks } from '../utils/api';
 import useCookies from '../hooks/useCookies';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -25,11 +24,10 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
   const navigate = useNavigate();
 
   const getAuthentication = async () => {
-    const URL = process.env.REACT_APP_GET_AUTHSTATUS_URL || "";
     const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
     try {
-      const authResponse = await fetch(URL, {
+      const authResponse = await fetch(API.authStatus, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guid: savedGuid }),
@@ -60,11 +58,27 @@ const MainPage: React.FC<LoginProps> = ({ setAuthenticated }) => {
 
 
   const fetchMarks = async () => {
-    const data = await getMarks();
-    setItems(data);
+    const savedToken = getCookies(COOKIE_TOKEN_NAME) || "";
+    const savedGuid = getCookies(COOKIE_GUID_NAME) || "";
 
-    if (data && data.length > 0) {
-      setMark(data[0]);
+    try {
+      const data = await getMarks(savedToken, savedGuid);
+      setItems(data);
+
+      if (data.length > 0) {
+        setMark(data[0]);
+      }
+    } catch (error) {
+      // The marks route checks the full token, unlike /authstatus above, so a
+      // device that passed the guid-only check can still be refused here.
+      // Treat that as the same sign-out.
+      if (error instanceof MarksError && error.status === 401) {
+        removeAuthentication();
+        setAuthenticated(false);
+        navigate('/login');
+        return;
+      }
+      console.error('Failed to load marks:', error);
     }
   };
 
