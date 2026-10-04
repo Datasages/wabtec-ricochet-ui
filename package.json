@@ -3,6 +3,10 @@
   "version": "1.0.6",
   "homepage": "https://SCAC_URI-apps.railwaynet.net/ricochet-ui",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "dependencies": {
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
